@@ -55,7 +55,8 @@ for (const pluginName of await readdir("./plugins")) {
     compact: true,
     exports: "named",
     globals(id) {
-      if (id.startsWith("@vendetta")) return `window.vendetta.${id.slice(1).replace(new RegExp("/", "g"), ".")}`;
+      if (id === "@vendetta") return "vendetta";
+      if (id.startsWith("@vendetta/")) return `vendetta.${id.slice("@vendetta/".length).replace(new RegExp("/", "g"), ".")}`;
       if (id === "react") return "window.React";
       if (id === "react-native") return "window.ReactNative";
       return id;

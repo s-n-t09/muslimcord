@@ -8,12 +8,12 @@
 ## رابط التثبيت
 
 ```text
-https://s-n-t09.github.io/muslimcord/MuslimCord/
+https://s-n-t09.github.io/muslimcord/
 ```
 
 ## طريقة التثبيت بالعربية
 
-1. انسخ الرابط: `https://s-n-t09.github.io/muslimcord/MuslimCord/`.
+1. انسخ الرابط: `https://s-n-t09.github.io/muslimcord/`.
 2. افتح Discord ثم اذهب إلى **Settings** ثم **Plugins**.
 3. اضغط على علامة **+** لبدء إضافة Plugin.
 4. الصق الرابط واضغط **Install**.
@@ -39,7 +39,7 @@ https://s-n-t09.github.io/muslimcord/MuslimCord/
 
 ## التوافق والتطوير
 
-المشروع مبني على صيغة Vendetta الرسمية: يحتوي كل Plugin على `manifest.json` وملف JavaScript رئيسي، ويُخرج البناء ملف `index.js` و`manifest.json` داخل `dist/MuslimCord/`. تُحمّل وحدات `@vendetta/*` من كائن العميل وقت التشغيل، لذلك لا تُضمَّن حزم Discord الداخلية في الملف النهائي.
+المشروع مبني على صيغة Vendetta الرسمية: يحتوي كل Plugin على `manifest.json` وملف JavaScript رئيسي، ويُخرج البناء ملف `index.js` و`manifest.json` داخل `dist/MuslimCord/`، ثم ينسخهما Workflow إلى جذر GitHub Pages حتى يعمل رابط التثبيت الجذري مباشرة. تُحمّل وحدات `@vendetta/*` من كائن العميل وقت التشغيل، لذلك لا تُضمَّن حزم Discord الداخلية في الملف النهائي.
 
 للبناء محلياً، ثبّت Node.js وpnpm ثم نفّذ:
 
@@ -49,7 +49,11 @@ pnpm typecheck
 pnpm build
 ```
 
-بعد كل push إلى فرع `main`، يبني GitHub Actions Plugin وينشر `dist/` إلى GitHub Pages. عند تفعيل Pages من إعدادات المستودع واختيار مصدر GitHub Actions أو فرع `gh-pages` بحسب إعداد الحساب، يصبح رابط التثبيت أعلاه متاحاً.
+بعد كل push إلى فرع `main`، يبني GitHub Actions Plugin وينشر `dist/` إلى GitHub Pages. رابط التثبيت هو جذر الموقع نفسه؛ وعند فتحه في المتصفح تظهر صفحة الشرح، بينما يقرأ العميل `manifest.json` ثم `index.js` تلقائياً من نفس الجذر.
+
+### استكشاف مشكلة عدم التفعيل
+
+في إصدارات Stable مثل 311.20 يجب استخدام الرابط الجذري التالي حرفياً، ويفضل إبقاء الشرطة المائلة الأخيرة: `https://s-n-t09.github.io/muslimcord/`. عند فتحه في المتصفح ستظهر صفحة HTML، وهذا طبيعي؛ إذ يطلب العميل خلف الكواليس `manifest.json` ثم ملف `index.js` من الرابط نفسه. لا تستخدم المسار القديم `/MuslimCord/` كرابط تثبيت.
 
 ---
 
@@ -63,12 +67,12 @@ pnpm build
 ## Installation URL
 
 ```text
-https://s-n-t09.github.io/muslimcord/MuslimCord/
+https://s-n-t09.github.io/muslimcord/
 ```
 
 ## Installation steps
 
-1. Copy the installation link: `https://s-n-t09.github.io/muslimcord/MuslimCord/`.
+1. Copy the installation link: `https://s-n-t09.github.io/muslimcord/`.
 2. Open Discord and go to **Settings**, then **Plugins**.
 3. Press the **+** button to add a plugin.
 4. Paste the URL and press **Install**.
@@ -94,7 +98,7 @@ Prayer times use the [AlAdhan Prayer Times API](https://aladhan.com/prayer-times
 
 ## Compatibility and development
 
-The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`. `@vendetta/*` modules remain external and are resolved by the client at runtime.
+The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, and the workflow copies both files to the GitHub Pages root so the root installation URL works directly. `@vendetta/*` modules remain external and are resolved by the client at runtime.
 
 To build locally, install Node.js and pnpm, then run:
 
@@ -104,4 +108,8 @@ pnpm typecheck
 pnpm build
 ```
 
-Every push to `main` triggers GitHub Actions, builds the plugin, and publishes `dist/` to GitHub Pages. After GitHub Pages is enabled for the repository, the installation URL above serves the plugin manifest and JavaScript while opening the URL in a browser shows bilingual instructions.
+Every push to `main` triggers GitHub Actions, builds the plugin, and publishes `dist/` to GitHub Pages. The installation URL is the site root itself: a browser receives the bilingual landing page, while the client fetches `manifest.json` and then `index.js` from that same root URL.
+
+### Troubleshooting activation
+
+On Stable releases such as 311.20, use the root URL exactly as written, preferably with the trailing slash: `https://s-n-t09.github.io/muslimcord/`. Seeing the HTML landing page in a browser is expected; the client fetches `manifest.json` and then `index.js` from that same URL in the background. Do not use the old `/MuslimCord/` path as the installation URL.

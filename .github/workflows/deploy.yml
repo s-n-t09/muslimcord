@@ -39,6 +39,10 @@ jobs:
       - name: Add bilingual landing pages
         run: |
           cp public/index.html dist/index.html
+          # The install URL is the repository root. Vendetta loaders fetch
+          # <url>/manifest.json and then <url>/<manifest.main>.
+          cp dist/MuslimCord/manifest.json dist/manifest.json
+          cp dist/MuslimCord/index.js dist/index.js
           mkdir -p dist/MuslimCord
           cp public/MuslimCord/index.html dist/MuslimCord/index.html
           cp README.md dist/README.md
