@@ -60,6 +60,8 @@ function getCache(storage: MuslimCordStorage): Record<string, string> {
   return storage.audioCache;
 }
 
+let activeNativePlayer: any;
+
 function getNativeAudioSound(): any | undefined {
   try {
     return (findByProps("MobileAudioSound") as any)?.MobileAudioSound;
@@ -72,13 +74,17 @@ function playNativeAudio(url: string, onFailure?: () => void): boolean {
   const MobileAudioSound = getNativeAudioSound();
   if (!MobileAudioSound) return false;
   try {
-    const player = new MobileAudioSound(url, "notification", 0.85, {
+    void activeNativePlayer?.stop?.();
+    activeNativePlayer = new MobileAudioSound(url, "media", 0.85, {
       onLoad: (loaded: boolean) => {
-        if (loaded) void player.play();
-        else onFailure?.();
+        if (!loaded) onFailure?.();
       },
     });
-    if (typeof player.play !== "function") return false;
+    if (typeof activeNativePlayer.play !== "function") return false;
+    // MobileAudioSound.play() performs its own preload wait. Calling it directly avoids
+    // relying on an onLoad callback that some Stable builds never emit.
+    const playPromise = activeNativePlayer.play();
+    playPromise?.catch?.(() => onFailure?.());
     return true;
   } catch {
     onFailure?.();
@@ -138,11 +144,12 @@ function playWebAudio(url: string, mime: string, onFailure?: () => void): boolea
   }
 }
 
-function playSource(url: string, voice: AudioVoice, fallbackUrl?: string): boolean {
+function playSource(url: string, voice: AudioVoice, fallbackUrl?: string, onFailure?: () => void): boolean {
   let fallbackUsed = false;
   const retryRemote = () => {
     if (fallbackUsed || !fallbackUrl || fallbackUrl === url) {
       playTone(740, 340);
+      onFailure?.();
       return;
     }
     fallbackUsed = true;
@@ -157,6 +164,7 @@ function playSource(url: string, voice: AudioVoice, fallbackUrl?: string): boole
     if (playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340))) return true;
   }
   playTone(740, 340);
+  onFailure?.();
   return false;
 }
 
@@ -231,13 +239,14 @@ export function clearAudioCache(storage: MuslimCordStorage): void {
   storage.audioDownloadError = {};
 }
 
-export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, voiceId = storage.adhanVoice): void {
+export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, voiceId = storage.adhanVoice, onFailure?: () => void): void {
   if (mode === "simple") {
     playTone(880, 170);
     return;
   }
   const voice = getVoice(voiceId || "ali-ahmed-mullah");
   const cached = getCache(storage)[voice.id];
-  // If a data URI is not accepted by Android's native player, retry the original URL automatically.
-  playSource(cached || voice.url, voice, cached ? voice.url : undefined);
+  // Native Android players generally reject data: URIs. Prefer the verified remote media URL;
+  // keep the cache as a fallback for web-capable runtimes.
+  playSource(voice.url, voice, cached && cached !== voice.url ? cached : undefined, onFailure);
 }

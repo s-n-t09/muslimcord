@@ -162,7 +162,7 @@ function triggerDuaa(): void {
   vstorage.nextDuaaAt = now + intervalMinutes(vstorage.duaaInterval, vstorage.duaaCustomMinutes) * 60_000;
   vstorage.salawatNotBefore = now + 3 * 60_000;
   vstorage.nextSalawatAt = Math.max(vstorage.nextSalawatAt || 0, vstorage.salawatNotBefore);
-  playReminderSound(vstorage, vstorage.reminderSound);
+  playReminderSound(vstorage, vstorage.reminderSound, undefined, () => showToast(localized.audioPlaybackFailed));
   notify(localized.duaaReminder, content, localized.amin);
 }
 
@@ -172,7 +172,7 @@ function triggerSalawat(): void {
   const now = Date.now();
   vstorage.lastSalawatAt = now;
   vstorage.nextSalawatAt = now + intervalMinutes(vstorage.salawatInterval, vstorage.salawatCustomMinutes) * 60_000;
-  playReminderSound(vstorage, vstorage.reminderSound);
+  playReminderSound(vstorage, vstorage.reminderSound, undefined, () => showToast(localized.audioPlaybackFailed));
   notify(localized.salawatReminder, content, localized.prayed);
 }
 
@@ -182,7 +182,7 @@ function triggerPrayer(prayer: PrayerName, time: string, index: number): void {
   const key = `${todayKey()}-${prayer}`;
   if (vstorage.lastPrayerAlerts[key]) return;
   vstorage.lastPrayerAlerts[key] = new Date().toISOString();
-  playReminderSound(vstorage, vstorage.reminderSound);
+  playReminderSound(vstorage, vstorage.reminderSound, undefined, () => showToast(localized.audioPlaybackFailed));
   notify(`${localized.prayerReminder}: ${name}`, `${localized.prayerTimes}: ${time}`, localized.prayed);
 }
 
@@ -250,8 +250,8 @@ export async function testSalawat(): Promise<void> {
 }
 
 export function testAdhan(): void {
-  playReminderSound(vstorage, "adhan");
-  showToast(t().testAdhanDone);
+  playReminderSound(vstorage, "adhan", undefined, () => showToast(t().audioPlaybackFailed));
+  showToast(t().audioPlaybackStarted);
 }
 
 export async function downloadSelectedAudio(): Promise<void> {
