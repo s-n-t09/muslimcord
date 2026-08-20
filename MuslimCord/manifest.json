@@ -1,0 +1,15 @@
+{
+  "name": "MuslimCord",
+  "description": "Prayer times, adhan reminders, du'a and salawat notifications for Discord modding clients.",
+  "authors": [
+    {
+      "name": "S.N.T",
+      "id": "1444349574859980881"
+    }
+  ],
+  "main": "index.js",
+  "vendetta": {
+    "icon": "ic_calendar"
+  },
+  "hash": "b2427842992090b87c9b4ec057d3c7c8b49fb8116abe12c55cd7bdec856635de"
+}
