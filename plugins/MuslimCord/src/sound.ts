@@ -75,11 +75,10 @@ function playNativeAudio(url: string, onFailure?: () => void): boolean {
   if (!MobileAudioSound) return false;
   try {
     void activeNativePlayer?.stop?.();
-    activeNativePlayer = new MobileAudioSound(url, "media", 0.85, {
-      onLoad: (loaded: boolean) => {
-        if (!loaded) onFailure?.();
-      },
-    });
+    // Discord's MobileAudioSound constructor expects the internal sound key
+    // (for example vibing_wumpus), not the public usage name "media".
+    // The key is mapped to the native MEDIA channel by Discord itself.
+    activeNativePlayer = new MobileAudioSound(url, "vibing_wumpus", 0.85, "default", false);
     if (typeof activeNativePlayer.play !== "function") return false;
     // MobileAudioSound.play() performs its own preload wait. Calling it directly avoids
     // relying on an onLoad callback that some Stable builds never emit.
