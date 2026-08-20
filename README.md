@@ -24,17 +24,17 @@ https://s-n-t09.github.io/muslimcord/
 
 | الإعداد | التفاصيل | القيمة الافتراضية |
 | --- | --- | --- |
-| الموقع | اختيار مدينة من القائمة ثم الضغط على حفظ لتحديث الأوقات | غير محدد |
-| أوقات الصلاة | تحديث يومي عبر خدمة AlAdhan وفق طريقة الحساب الافتراضية Muslim World League | مفعلة بعد حفظ الموقع |
+| الموقع | كتابة مدينة أو دولة أو إحداثيات ثم فتح رابط OpenStreetMap للنسخ واللصق والضغط على حفظ | غير محدد |
+| أوقات الصلاة | تحديث يومي عبر خدمة AlAdhan وفق طريقة الحساب الافتراضية Muslim World League؛ الشروق تنبيه صامت فقط | مفعلة بعد حفظ الموقع |
 | تذكير الدعاء | 30 دقيقة، ساعة، ساعتان، ثلاث ساعات، أو مدة مخصصة، مع مؤقت مرئي | 30 دقيقة |
 | تذكير الصلاة على النبي محمد ﷺ | الفواصل نفسها، مع تأخير ثلاث دقائق بعد تذكير الدعاء | ساعة |
-| الصوت | صوت إشعار بسيط أو صوت أذان قابل للاختيار | صوت إشعار بسيط |
+| الصوت | صوت إشعار بسيط للتذكيرات، أو أذان لأوقات الصلاة فقط | صوت إشعار بسيط |
 | تنزيل الأصوات | تنزيل صوت محدد أو جميع الأصوات يدوياً وتخزينها محلياً عند دعم العميل | غير منزّل |
 | اللغة | العربية أو English | تُستنتج من لغة العميل |
 
-يعمل Plugin في الخلفية أثناء تفعيله، ويحدّث عدّادات التذكير كل ثانية مع فحص أوقات الصلاة بدقة على مستوى الدقيقة. زر **تفعيل التذكيرات** هو المفتاح الموحّد لإيقاف نوافذ الدعاء والصلاة على النبي وتنبيهات الصلاة معاً. تُحفظ الإعدادات في مساحة التخزين الخاصة بالعميل، ويستمر التذكير وفق اختياراتك بعد إعادة فتح Discord.
+يعمل Plugin في الخلفية أثناء تفعيله باستخدام مؤقتات متباعدة بدلاً من حلقة تعمل كل ثانية؛ يستيقظ عند موعد التذكير أو بداية الدقيقة أو موعد تحديث أوقات الصلاة، مما يقلل العمل المستمر على Discord. وتُحدّث عدّادات صفحة الإعدادات كل خمس ثوانٍ فقط أثناء فتحها. زر **تفعيل التذكيرات** هو المفتاح الموحّد لإيقاف نوافذ الدعاء والصلاة على النبي وتنبيهات الصلاة معاً. تُحفظ الإعدادات في مساحة التخزين الخاصة بالعميل، ويستمر التذكير وفق اختياراتك بعد إعادة فتح Discord.
 
-تتيح صفحة الإعدادات اختيار الموقع من قائمة المدن ثم الضغط على **حفظ الموقع وتحديث الأوقات**. كما تتضمن أزراراً لاختبار الأذان، الدعاء، والصلاة على النبي محمد ﷺ. يعرض التنزيل حالة البدء والنسبة والحجم المنقول وحالة النجاح أو الفشل، ويمكن تنزيل صوت الأذان المحدد أو جميع الأصوات يدوياً.
+تتيح صفحة الإعدادات كتابة الموقع في حقل نصي ثم الضغط على **حفظ الموقع وتحديث الأوقات**. يوجد رابط OpenStreetMap موثوق يمكن فتحه للبحث عن المنطقة ونسخ اسم المكان أو العنوان ولصقه في الحقل. كما تتضمن أزراراً لاختبار الأذان، الدعاء، والصلاة على النبي محمد ﷺ. يعرض التنزيل حالة البدء والنسبة والحجم المنقول وحالة النجاح أو الفشل، ويمكن تنزيل صوت الأذان المحدد أو جميع الأصوات يدوياً.
 
 تتضمن أصوات الأذان الحالية: الشيخ علي أحمد ملا، صباح فخري، عاقب عزيز، وتسجيل عام من الدوحة.
 
@@ -88,24 +88,23 @@ https://s-n-t09.github.io/muslimcord/
 
 | Setting | Details | Default |
 | --- | --- | --- |
-| Location | Enter a city and country or coordinates, with an optional device-location action | Not set |
-| Prayer times | Refreshes daily prayer times through AlAdhan using the default Muslim World League method | Enabled after saving a location |
-| Location | Select a city from the built-in list, then press Save to refresh times | Not set |
+| Location | Enter a city, country, copied place name, address, or coordinates, with help from the OpenStreetMap search link | Not set |
+| Prayer times | Refreshes daily prayer times through AlAdhan using the default Muslim World League method; Sunrise is notification-only | Enabled after saving a location |
 | Du'a reminders | 30 minutes, 1 hour, 2 hours, 3 hours, or a custom interval, with a visible countdown | 30 minutes |
 | Salawat reminders | The same interval choices, delayed by three minutes after a du'a reminder | 1 hour |
-| Sound | Simple notification sound or a selectable full-adhan voice | Simple notification sound |
+| Sound | Simple notification sound for reminders, or full adhan for prayer times only | Simple notification sound |
 | Audio downloads | Download the selected adhan voice or all voices manually for local reuse | Not downloaded |
 | Language | Arabic or English | Client locale |
 
-When enabled, the plugin updates reminder countdowns every second and checks prayer times at minute precision while Discord is running. A single **Enable reminders** switch controls all reminder pop-ups. Settings are stored in the client plugin storage and remain available after restarting Discord. The settings screen includes test buttons for adhan, du'a, and blessings upon Prophet Muhammad ﷺ. Audio downloads display preparation, percentage, transferred size, success, and failure states.
+When enabled, the plugin uses scheduled timeouts instead of a one-second background loop: it wakes at reminder deadlines, minute boundaries, and the daily refresh deadline. The settings screen refreshes visible countdowns every five seconds only while it is open. A single **Enable reminders** switch controls all reminder pop-ups. Settings are stored in the client plugin storage and remain available after restarting Discord. The settings screen includes test buttons for adhan, du'a, and blessings upon Prophet Muhammad ﷺ. Audio downloads display preparation, percentage, transferred size, success, and failure states.
 
 ## Data and audio sources
 
-Prayer times use the [AlAdhan Prayer Times API](https://aladhan.com/prayer-times-api), and selected place names are resolved with [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/). Available adhan voices include Sheikh Ali Ahmed Mullah from [MakkahAzan](https://archive.org/details/MakkahAzan), Sabah Fakhry from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3), Aaqib Azeez from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3), and a public-domain Doha recording from [Internet Archive](https://archive.org/details/adhan.recordings.from.doha.qatar). On Android, playback uses the client’s native `MobileAudioSound` interface first. For Kettu and Vendetta compatibility, the constructor receives Discord’s internal `vibing_wumpus` sound key and the `default` output channel; passing `media` directly does not select Discord’s internal sound route correctly. The plugin then falls back to web audio or the original URL. Downloads begin only after the user presses a button and show live progress when the response exposes a readable stream and size.
+Prayer times use the [AlAdhan Prayer Times API](https://aladhan.com/prayer-times-api); Fajr, Dhuhr, Asr, Maghrib, and Isha can use the selected adhan, while Sunrise always uses a simple notification only. The location field accepts a copied place name, address, or coordinates. A trusted [OpenStreetMap search page](https://www.openstreetmap.org/search) is linked from Settings to help users find and copy the correct location, and the submitted place is resolved with [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/). Available adhan voices include Sheikh Ali Ahmed Mullah from [MakkahAzan](https://archive.org/details/MakkahAzan), Sabah Fakhry from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3), Aaqib Azeez from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3), and a public-domain Doha recording from [Internet Archive](https://archive.org/details/adhan.recordings.from.doha.qatar). On Android, playback uses the client’s native `MobileAudioSound` interface first. For Kettu and Vendetta compatibility, the constructor receives Discord’s internal `vibing_wumpus` sound key and the `default` output channel; passing `media` directly does not select Discord’s internal sound route correctly. The plugin then falls back to web audio or the original URL. Downloads begin only after the user presses a button and show live progress when the response exposes a readable stream and size.
 
 ## Compatibility and development
 
-The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, then the workflow copies both files to the GitHub Pages root so the root installation URL works directly. Settings include a saved location picker, one unified reminder switch, visible second-level countdowns, independent test actions, manual audio downloads with progress, and selectable adhan voices. `@vendetta/*` modules remain external and are resolved by the client at runtime.
+The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, then the workflow copies both files to the GitHub Pages root so the root installation URL works directly. Settings include a saved text location field with an OpenStreetMap helper link, one unified reminder switch, visible countdowns, independent test actions, manual audio downloads with progress, and selectable adhan voices. `@vendetta/*` modules remain external and are resolved by the client at runtime.
 
 To build locally, install Node.js and pnpm, then run:
 

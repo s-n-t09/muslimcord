@@ -1,12 +1,12 @@
-import { ReactNative as RN, React } from "@vendetta/metro/common";
+import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
 import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, testAdhan, testDuaa, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
-import { LOCATION_OPTIONS, searchLocations, type LocationOption } from "./locations";
 import { AUDIO_VOICES, type AdhanVoiceId, type SoundMode } from "./sound";
 
 const { FormRow, FormText, FormInput, FormRadioRow, FormSwitchRow } = Forms;
+const LOCATION_HELP_URL = "https://www.openstreetmap.org/search";
 
 const intervals: Array<{ value: IntervalPreset; ar: string; en: string }> = [
   { value: "30m", ar: "30 دقيقة", en: "30 minutes" },
@@ -56,27 +56,27 @@ function ActionRow({ label, onPress, subLabel }: { label: string; onPress: () =>
 function LocationModal({ visible, isArabic, onClose }: { visible: boolean; isArabic: boolean; onClose: () => void }) {
   const localized = t();
   const [query, setQuery] = React.useState(vstorage.locationQuery || "");
-  const [selected, setSelected] = React.useState<LocationOption | undefined>(LOCATION_OPTIONS.find((item) => item.id === vstorage.selectedLocationId));
-  const results = searchLocations(query);
 
   React.useEffect(() => {
-    if (visible) {
-      setQuery(vstorage.locationQuery || "");
-      setSelected(LOCATION_OPTIONS.find((item) => item.id === vstorage.selectedLocationId));
-    }
+    if (visible) setQuery(vstorage.locationQuery || "");
   }, [visible]);
+
+  const save = () => {
+    const value = query.trim();
+    if (!value) return;
+    onClose();
+    void saveLocation(value, value);
+  };
 
   return (
     <RN.Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <RN.View style={{ flex: 1, paddingTop: 40, backgroundColor: "#101827" }}>
         <FormRow label={localized.chooseLocation} onPress={onClose} trailing={<FormRow.Arrow />} />
-        <RN.TextInput value={query} onChangeText={setQuery} placeholder={localized.locationPlaceholder} placeholderTextColor="#94a3b8" style={{ margin: 12, padding: 14, borderRadius: 10, backgroundColor: "#1e293b", color: "#f8fafc" }} />
-        <RN.ScrollView style={{ flex: 1 }}>
-          {results.map((option) => (
-            <FormRadioRow key={option.id} label={isArabic ? option.label : option.query} subLabel={isArabic ? option.query : option.label} selected={selected?.id === option.id} onPress={() => setSelected(option)} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />
-          ))}
-        </RN.ScrollView>
-        <ActionRow label={localized.saveLocation} subLabel={selected ? selected.label : localized.locationRequired} onPress={() => { if (!selected) return; onClose(); void saveLocation(selected.query, selected.id); }} />
+        <FormText>{localized.locationInputHint}</FormText>
+        <ActionRow label={localized.openLocationWebsite} subLabel="OpenStreetMap — openstreetmap.org" onPress={() => { void url.openURL(LOCATION_HELP_URL); }} />
+        <RN.TextInput value={query} onChangeText={setQuery} placeholder={localized.locationPlaceholder} placeholderTextColor="#94a3b8" autoCapitalize="words" autoCorrect={false} style={{ margin: 12, padding: 14, borderRadius: 10, backgroundColor: "#1e293b", color: "#f8fafc" }} />
+        <FormText>{localized.locationPasteHint}</FormText>
+        <ActionRow label={localized.saveLocation} subLabel={query.trim() || localized.locationRequired} onPress={save} />
       </RN.View>
     </RN.Modal>
   );
@@ -92,7 +92,7 @@ export default function Settings() {
   const prayerNames: PrayerName[] = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
   React.useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    const timer = setInterval(() => setNow(Date.now()), 5_000);
     return () => clearInterval(timer);
   }, []);
 

@@ -69,7 +69,7 @@ const DEFAULTS: MuslimCordStorage = {
   lastPrayerAlerts: {},
 };
 
-let scheduler: ReturnType<typeof setInterval> | undefined;
+let scheduler: ReturnType<typeof setTimeout> | undefined;
 let refreshing = false;
 let duaIndex = 0;
 let salawatIndex = 0;
@@ -110,6 +110,7 @@ export function rescheduleReminders(from = Date.now()): void {
   vstorage.nextDuaaAt = from + intervalMinutes(vstorage.duaaInterval, vstorage.duaaCustomMinutes) * 60_000;
   vstorage.salawatNotBefore = from + 3 * 60_000;
   vstorage.nextSalawatAt = from + intervalMinutes(vstorage.salawatInterval, vstorage.salawatCustomMinutes) * 60_000 + 3 * 60_000;
+  scheduleNextTick();
 }
 
 function todayKey(): string {
@@ -162,7 +163,8 @@ function triggerDuaa(): void {
   vstorage.nextDuaaAt = now + intervalMinutes(vstorage.duaaInterval, vstorage.duaaCustomMinutes) * 60_000;
   vstorage.salawatNotBefore = now + 3 * 60_000;
   vstorage.nextSalawatAt = Math.max(vstorage.nextSalawatAt || 0, vstorage.salawatNotBefore);
-  playReminderSound(vstorage, vstorage.reminderSound, undefined, () => showToast(localized.audioPlaybackFailed));
+  // Du'a uses only the lightweight notification sound; full adhan is reserved for prayer times.
+  playReminderSound(vstorage, "simple");
   notify(localized.duaaReminder, content, localized.amin);
 }
 
@@ -172,17 +174,20 @@ function triggerSalawat(): void {
   const now = Date.now();
   vstorage.lastSalawatAt = now;
   vstorage.nextSalawatAt = now + intervalMinutes(vstorage.salawatInterval, vstorage.salawatCustomMinutes) * 60_000;
-  playReminderSound(vstorage, vstorage.reminderSound, undefined, () => showToast(localized.audioPlaybackFailed));
+  // Salawat reminders must never play the full adhan.
+  playReminderSound(vstorage, "simple");
   notify(localized.salawatReminder, content, localized.prayed);
 }
 
-function triggerPrayer(prayer: PrayerName, time: string, index: number): void {
+function triggerPrayer(prayer: PrayerName, time: string): void {
   const localized = t();
   const name = formatPrayerName(prayer, language());
   const key = `${todayKey()}-${prayer}`;
   if (vstorage.lastPrayerAlerts[key]) return;
   vstorage.lastPrayerAlerts[key] = new Date().toISOString();
-  playReminderSound(vstorage, vstorage.reminderSound, undefined, () => showToast(localized.audioPlaybackFailed));
+  // Sunrise is a notification only; it must never play an adhan.
+  const soundMode = prayer === "Sunrise" ? "simple" : vstorage.reminderSound;
+  playReminderSound(vstorage, soundMode, undefined, () => showToast(localized.audioPlaybackFailed));
   notify(`${localized.prayerReminder}: ${name}`, `${localized.prayerTimes}: ${time}`, localized.prayed);
 }
 
@@ -193,24 +198,39 @@ function checkPrayerAlerts(): void {
   if (vstorage.lastPrayerCheckMinute === currentMinute) return;
   vstorage.lastPrayerCheckMinute = currentMinute;
   const clock = `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`;
-  const prayers: PrayerName[] = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
-  prayers.forEach((prayer, index) => {
-    if (data.times[prayer]?.startsWith(clock)) triggerPrayer(prayer, data.times[prayer], index);
+  const prayers: PrayerName[] = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  prayers.forEach((prayer) => {
+    if (data.times[prayer]?.startsWith(clock)) triggerPrayer(prayer, data.times[prayer]);
   });
 }
 
 function tick(): void {
-  if (!vstorage.enabled) return;
-  checkPrayerAlerts();
   const now = Date.now();
-  if (vstorage.duaaEnabled && vstorage.nextDuaaAt <= now) triggerDuaa();
-  if (vstorage.salawatEnabled && vstorage.nextSalawatAt <= now && now >= vstorage.salawatNotBefore) triggerSalawat();
-  if (vstorage.locationQuery && (!vstorage.prayerData || now - Number(vstorage.prayerData.fetchedAt || 0) > 12 * 60 * 60_000)) void refreshPrayerData();
+  if (vstorage.enabled) {
+    checkPrayerAlerts();
+    if (vstorage.duaaEnabled && vstorage.nextDuaaAt <= now) triggerDuaa();
+    if (vstorage.salawatEnabled && vstorage.nextSalawatAt <= now && now >= vstorage.salawatNotBefore) triggerSalawat();
+  }
+  if (vstorage.locationQuery && vstorage.prayerData && now - Number(vstorage.prayerData.fetchedAt || 0) > 12 * 60 * 60_000 && !refreshing) {
+    void refreshPrayerData();
+  }
+  scheduleNextTick();
+}
+
+function scheduleNextTick(): void {
+  if (scheduler) clearTimeout(scheduler);
+  const now = Date.now();
+  const candidates: number[] = [now + (vstorage.enabled ? 60_000 : 300_000)];
+  if (vstorage.enabled && vstorage.prayerAlertsEnabled) candidates.push(now + (60_000 - (now % 60_000)) + 250);
+  if (vstorage.enabled && vstorage.duaaEnabled) candidates.push(vstorage.nextDuaaAt);
+  if (vstorage.enabled && vstorage.salawatEnabled) candidates.push(Math.max(vstorage.nextSalawatAt, vstorage.salawatNotBefore));
+  if (vstorage.locationQuery && vstorage.prayerData) candidates.push(Number(vstorage.prayerData.fetchedAt || now) + 12 * 60 * 60_000);
+  const nextAt = Math.min(...candidates.filter((value) => Number.isFinite(value) && value > now));
+  scheduler = setTimeout(tick, Math.max(500, nextAt - now));
 }
 
 function startScheduler(): void {
-  if (scheduler) clearInterval(scheduler);
-  scheduler = setInterval(tick, 1_000);
+  scheduleNextTick();
 }
 
 export async function refreshPrayerData(query = vstorage.locationQuery, locationId = vstorage.selectedLocationId): Promise<void> {
@@ -234,6 +254,7 @@ export async function refreshPrayerData(query = vstorage.locationQuery, location
     showToast(localized.apiError);
   } finally {
     refreshing = false;
+    scheduleNextTick();
   }
 }
 
@@ -293,7 +314,7 @@ export function onLoad(): void {
 }
 
 export function onUnload(): void {
-  if (scheduler) clearInterval(scheduler);
+  if (scheduler) clearTimeout(scheduler);
   scheduler = undefined;
   logger.log("MuslimCord unloaded");
 }
