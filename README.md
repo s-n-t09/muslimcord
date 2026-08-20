@@ -28,19 +28,19 @@ https://s-n-t09.github.io/muslimcord/
 | أوقات الصلاة | تحديث يومي عبر خدمة AlAdhan وفق طريقة الحساب الافتراضية Muslim World League | مفعلة بعد حفظ الموقع |
 | تذكير الدعاء | 30 دقيقة، ساعة، ساعتان، ثلاث ساعات، أو مدة مخصصة، مع مؤقت مرئي | 30 دقيقة |
 | تذكير الصلاة على النبي محمد ﷺ | الفواصل نفسها، مع تأخير ثلاث دقائق بعد تذكير الدعاء | ساعة |
-| الصوت | صوت إشعار بسيط، تكبيرات الشيخ علي أحمد ملا، أو صوت أذان قابل للاختيار | صوت إشعار بسيط |
+| الصوت | صوت إشعار بسيط أو صوت أذان قابل للاختيار | صوت إشعار بسيط |
 | تنزيل الأصوات | تنزيل صوت محدد أو جميع الأصوات يدوياً وتخزينها محلياً عند دعم العميل | غير منزّل |
 | اللغة | العربية أو English | تُستنتج من لغة العميل |
 
 يعمل Plugin في الخلفية أثناء تفعيله، ويحدّث عدّادات التذكير كل ثانية مع فحص أوقات الصلاة بدقة على مستوى الدقيقة. زر **تفعيل التذكيرات** هو المفتاح الموحّد لإيقاف نوافذ الدعاء والصلاة على النبي وتنبيهات الصلاة معاً. تُحفظ الإعدادات في مساحة التخزين الخاصة بالعميل، ويستمر التذكير وفق اختياراتك بعد إعادة فتح Discord.
 
-تتيح صفحة الإعدادات اختيار الموقع من قائمة المدن ثم الضغط على **حفظ الموقع وتحديث الأوقات**. كما تتضمن أزراراً لاختبار الأذان، تكبيرات الشيخ علي أحمد ملا، الدعاء، والصلاة على النبي محمد ﷺ. يمكن تنزيل صوت الأذان المحدد أو جميع الأصوات يدوياً، وتُحفظ النسخ التي يدعمها العميل محلياً لتقليل وقت التشغيل اللاحق.
+تتيح صفحة الإعدادات اختيار الموقع من قائمة المدن ثم الضغط على **حفظ الموقع وتحديث الأوقات**. كما تتضمن أزراراً لاختبار الأذان، الدعاء، والصلاة على النبي محمد ﷺ. يعرض التنزيل حالة البدء والنسبة والحجم المنقول وحالة النجاح أو الفشل، ويمكن تنزيل صوت الأذان المحدد أو جميع الأصوات يدوياً.
 
-تتضمن أصوات الأذان الحالية: الشيخ علي أحمد ملا، صباح فخري، عاقب عزيز، وتسجيل عام من الدوحة. أما التكبيرات فثابتة على تسجيل **الشيخ علي أحمد ملا** كما طُلب.
+تتضمن أصوات الأذان الحالية: الشيخ علي أحمد ملا، صباح فخري، عاقب عزيز، وتسجيل عام من الدوحة.
 
 ## مصادر البيانات والصوت
 
-تُستخدم خدمة [AlAdhan Prayer Times API](https://aladhan.com/prayer-times-api) لحساب أوقات الصلاة، وتُستخدم خدمة [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/) لتحويل المكان المختار إلى إحداثيات. تتضمن أصوات الأذان الشيخ علي أحمد ملا من [MakkahAzan](https://archive.org/details/MakkahAzan)، وصباح فخري من [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3)، وعاقب عزيز من [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3)، وتسجيل الدوحة العام من [Internet Archive](https://archive.org/details/adhan.recordings.from.doha.qatar). أما التكبيرات فثابتة على [تكبيرات الشيخ علي ملا](https://archive.org/details/EidTakbirBySheikhAliMullah). لا يبدأ تنزيل الصوت إلا بعد ضغط المستخدم على زر التنزيل، ويستخدم Plugin نسخة مخزنة محلياً عندما يدعم العميل ذلك.
+تُستخدم خدمة [AlAdhan Prayer Times API](https://aladhan.com/prayer-times-api) لحساب أوقات الصلاة، وتُستخدم خدمة [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/) لتحويل المكان المختار إلى إحداثيات. تتضمن أصوات الأذان الشيخ علي أحمد ملا من [MakkahAzan](https://archive.org/details/MakkahAzan)، وصباح فخري من [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3)، وعاقب عزيز من [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3)، وتسجيل الدوحة العام من [Internet Archive](https://archive.org/details/adhan.recordings.from.doha.qatar). يستخدم التشغيل الآن `MobileAudioSound` الأصلي في عميل Android، مع fallback للويب والرابط الأصلي إذا لم يقبل العميل النسخة المخزنة. يعرض التنزيل تقدماً حقيقياً من stream الاستجابة عندما يرسل الخادم حجم الملف.
 
 ## التوافق والتطوير
 
@@ -93,19 +93,19 @@ https://s-n-t09.github.io/muslimcord/
 | Location | Select a city from the built-in list, then press Save to refresh times | Not set |
 | Du'a reminders | 30 minutes, 1 hour, 2 hours, 3 hours, or a custom interval, with a visible countdown | 30 minutes |
 | Salawat reminders | The same interval choices, delayed by three minutes after a du'a reminder | 1 hour |
-| Sound | Simple notification sound, Sheikh Ali Ahmed Mullah takbeer, or a selectable full-adhan voice | Simple notification sound |
+| Sound | Simple notification sound or a selectable full-adhan voice | Simple notification sound |
 | Audio downloads | Download the selected adhan voice or all voices manually for local reuse | Not downloaded |
 | Language | Arabic or English | Client locale |
 
-When enabled, the plugin updates reminder countdowns every second and checks prayer times at minute precision while Discord is running. A single **Enable reminders** switch controls all reminder pop-ups. Settings are stored in the client plugin storage and remain available after restarting Discord. The settings screen includes test buttons for adhan, Sheikh Ali Ahmed Mullah takbeer, du'a, and blessings upon Prophet Muhammad ﷺ.
+When enabled, the plugin updates reminder countdowns every second and checks prayer times at minute precision while Discord is running. A single **Enable reminders** switch controls all reminder pop-ups. Settings are stored in the client plugin storage and remain available after restarting Discord. The settings screen includes test buttons for adhan, du'a, and blessings upon Prophet Muhammad ﷺ. Audio downloads display preparation, percentage, transferred size, success, and failure states.
 
 ## Data and audio sources
 
-Prayer times use the [AlAdhan Prayer Times API](https://aladhan.com/prayer-times-api), and selected place names are resolved with [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/). Available adhan voices include Sheikh Ali Ahmed Mullah from [MakkahAzan](https://archive.org/details/MakkahAzan), Sabah Fakhry from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3), Aaqib Azeez from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3), and a public-domain Doha recording from [Internet Archive](https://archive.org/details/adhan.recordings.from.doha.qatar). Takbeer mode uses the public-domain [Eid Takbir by Sheikh Ali Mullah](https://archive.org/details/EidTakbirBySheikhAliMullah). Audio is downloaded only after the user presses a download button; the plugin stores a cache where the client runtime supports it and falls back to the public URL otherwise.
+Prayer times use the [AlAdhan Prayer Times API](https://aladhan.com/prayer-times-api), and selected place names are resolved with [OpenStreetMap Nominatim](https://nominatim.org/release-docs/latest/api/Search/). Available adhan voices include Sheikh Ali Ahmed Mullah from [MakkahAzan](https://archive.org/details/MakkahAzan), Sabah Fakhry from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3), Aaqib Azeez from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3), and a public-domain Doha recording from [Internet Archive](https://archive.org/details/adhan.recordings.from.doha.qatar). On Android, playback uses the client’s native `MobileAudioSound` interface first, then falls back to web audio or the original URL. Downloads begin only after the user presses a button and show live progress when the response exposes a readable stream and size.
 
 ## Compatibility and development
 
-The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, then the workflow copies both files to the GitHub Pages root so the root installation URL works directly. Settings include a saved location picker, one unified reminder switch, visible second-level countdowns, independent test actions, manual audio downloads, and selectable adhan voices; takbeer is fixed to Sheikh Ali Ahmed Mullah. `@vendetta/*` modules remain external and are resolved by the client at runtime.
+The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, then the workflow copies both files to the GitHub Pages root so the root installation URL works directly. Settings include a saved location picker, one unified reminder switch, visible second-level countdowns, independent test actions, manual audio downloads with progress, and selectable adhan voices. `@vendetta/*` modules remain external and are resolved by the client at runtime.
 
 To build locally, install Node.js and pnpm, then run:
 

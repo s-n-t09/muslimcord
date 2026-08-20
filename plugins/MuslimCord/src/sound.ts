@@ -1,12 +1,13 @@
+import { findByProps } from "@vendetta/metro";
 import type { MuslimCordStorage } from ".";
 
-export type SoundMode = "simple" | "takbeer" | "adhan";
+export type SoundMode = "simple" | "adhan";
 export type AdhanVoiceId = "ali-ahmed-mullah" | "sabah-fakhry" | "aaqib-azeez" | "doha-qatar";
-export type AudioVoiceId = AdhanVoiceId | "ali-mullah-takbeer";
 export type AudioDownloadState = "not-downloaded" | "downloading" | "downloaded" | "failed";
+export type AudioProgress = { loaded: number; total: number; percent: number };
 
 export type AudioVoice = {
-  id: AudioVoiceId;
+  id: AdhanVoiceId;
   name: string;
   nameAr: string;
   url: string;
@@ -54,45 +55,53 @@ export const AUDIO_VOICES: AudioVoice[] = [
   },
 ];
 
-export const TAKBEER_VOICE: AudioVoice = {
-  ...AUDIO_VOICES[0],
-  id: "ali-mullah-takbeer",
-  name: "Sheikh Ali Ahmed Mullah — Eid Takbir",
-  nameAr: "الشيخ علي أحمد ملا — تكبيرات العيد",
-  url: "https://archive.org/download/EidTakbirBySheikhAliMullah/EidTakbirBySheikhAliMullah_64kb.mp3",
-  mime: "audio/mpeg",
-  attribution: "Eid Takbir by Sheikh Ali Mullah — public domain",
-  attributionUrl: "https://archive.org/details/EidTakbirBySheikhAliMullah",
-};
-
-const SIMPLE_TONE = 880;
-
-type CacheRecord = Record<string, string>;
-
-function getCache(storage: MuslimCordStorage): CacheRecord {
+function getCache(storage: MuslimCordStorage): Record<string, string> {
   storage.audioCache ??= {};
   return storage.audioCache;
 }
 
-function toDataUri(blob: Blob, mime: string): Promise<string | null> {
+function getNativeAudioSound(): any | undefined {
+  try {
+    return (findByProps("MobileAudioSound") as any)?.MobileAudioSound;
+  } catch {
+    return undefined;
+  }
+}
+
+function playNativeAudio(url: string, onFailure?: () => void): boolean {
+  const MobileAudioSound = getNativeAudioSound();
+  if (!MobileAudioSound) return false;
+  try {
+    const player = new MobileAudioSound(url, "notification", 0.85, {
+      onLoad: (loaded: boolean) => {
+        if (loaded) void player.play();
+        else onFailure?.();
+      },
+    });
+    if (typeof player.play !== "function") return false;
+    return true;
+  } catch {
+    onFailure?.();
+    return false;
+  }
+}
+
+function toDataUri(blob: Blob): Promise<string | null> {
   return new Promise((resolve) => {
     try {
       const FileReaderCtor = (globalThis as any).FileReader;
-      if (FileReaderCtor) {
-        const reader = new FileReaderCtor();
-        reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-        return;
-      }
+      if (!FileReaderCtor) return resolve(null);
+      const reader = new FileReaderCtor();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
     } catch {
-      // Fall through to URL playback when FileReader is not available in the mobile runtime.
+      resolve(null);
     }
-    resolve(null);
   });
 }
 
-function playTone(frequency = SIMPLE_TONE, duration = 180): void {
+function playTone(frequency = 880, duration = 180): void {
   try {
     const AudioContextCtor = (globalThis as any).AudioContext || (globalThis as any).webkitAudioContext;
     if (!AudioContextCtor) return;
@@ -109,17 +118,17 @@ function playTone(frequency = SIMPLE_TONE, duration = 180): void {
     oscillator.start();
     oscillator.stop(context.currentTime + duration / 1000 + 0.02);
   } catch {
-    // Some Android Discord runtimes expose no Web Audio API.
+    // No Web Audio API in this runtime.
   }
 }
 
-function playAudioUrl(url: string, mime: string, onFailure?: () => void): boolean {
+function playWebAudio(url: string, mime: string, onFailure?: () => void): boolean {
   try {
     const AudioCtor = (globalThis as any).Audio;
     if (!AudioCtor) return false;
     const player = new AudioCtor(url);
     player.type = mime;
-    player.volume = 0.75;
+    player.volume = 0.85;
     const promise = player.play?.();
     if (promise?.catch) promise.catch(() => onFailure?.());
     return true;
@@ -129,61 +138,87 @@ function playAudioUrl(url: string, mime: string, onFailure?: () => void): boolea
   }
 }
 
-function playTakbeerFallback(): void {
-  try {
-    const speech = (globalThis as any).speechSynthesis;
-    const Utterance = (globalThis as any).SpeechSynthesisUtterance;
-    if (speech && Utterance) {
-      const utterance = new Utterance("الله أكبر");
-      utterance.lang = "ar-SA";
-      utterance.rate = 0.78;
-      utterance.volume = 0.8;
-      speech.cancel();
-      speech.speak(utterance);
+function playSource(url: string, voice: AudioVoice, fallbackUrl?: string): boolean {
+  let fallbackUsed = false;
+  const retryRemote = () => {
+    if (fallbackUsed || !fallbackUrl || fallbackUrl === url) {
+      playTone(740, 340);
       return;
     }
-  } catch {
-    // Fall through to an audible fallback.
+    fallbackUsed = true;
+    if (!playNativeAudio(fallbackUrl, () => playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340)))) {
+      if (!playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340))) playTone(740, 340);
+    }
+  };
+  if (playNativeAudio(url, retryRemote)) return true;
+  if (playWebAudio(url, voice.mime, retryRemote)) return true;
+  if (fallbackUrl && fallbackUrl !== url) {
+    if (playNativeAudio(fallbackUrl, () => playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340)))) return true;
+    if (playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340))) return true;
   }
-  playTone(660, 230);
-  setTimeout(() => playTone(880, 320), 250);
+  playTone(740, 340);
+  return false;
 }
 
 export function getVoice(id: AdhanVoiceId): AudioVoice {
   return AUDIO_VOICES.find((voice) => voice.id === id) || AUDIO_VOICES[0];
 }
 
-export function isDownloaded(storage: MuslimCordStorage, id: string): boolean {
-  return Boolean(getCache(storage)[id]);
+export function getAudioState(storage: MuslimCordStorage, id: string): AudioDownloadState {
+  return storage.audioDownloadState?.[id] || (storage.audioCache?.[id] ? "downloaded" : "not-downloaded");
 }
 
-export function downloadState(storage: MuslimCordStorage, id: string): AudioDownloadState {
-  const states = storage.audioDownloadState || {};
-  return states[id] || (isDownloaded(storage, id) ? "downloaded" : "not-downloaded");
+export function getAudioProgress(storage: MuslimCordStorage, id: string): AudioProgress | undefined {
+  return storage.audioDownloadProgress?.[id];
 }
 
 export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoice): Promise<boolean> {
   storage.audioDownloadState ??= {};
+  storage.audioDownloadProgress ??= {};
+  storage.audioDownloadError ??= {};
   storage.audioDownloadState[voice.id] = "downloading";
+  storage.audioDownloadProgress[voice.id] = { loaded: 0, total: 0, percent: 0 };
+  delete storage.audioDownloadError[voice.id];
   try {
     const response = await fetch(voice.url, { cache: "force-cache" });
     if (!response.ok) throw new Error(`Audio download failed: ${response.status}`);
-    const blob = await response.blob();
-    const dataUri = await toDataUri(blob, voice.mime);
-    const cache = getCache(storage);
-    // A data URI is preferred for offline playback; URL fallback still records a local choice.
-    cache[voice.id] = dataUri || voice.url;
+    const total = Number(response.headers.get("content-length") || 0);
+    let loaded = 0;
+    let blob: Blob;
+    if (response.body?.getReader) {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const item = await reader.read();
+        if (item.done) break;
+        if (item.value) {
+          chunks.push(item.value);
+          loaded += item.value.byteLength;
+          storage.audioDownloadProgress[voice.id] = { loaded, total, percent: total ? Math.min(100, Math.round((loaded / total) * 100)) : 0 };
+        }
+      }
+      blob = new Blob(chunks as unknown as BlobPart[], { type: voice.mime });
+    } else {
+      blob = await response.blob();
+      loaded = blob.size;
+      storage.audioDownloadProgress[voice.id] = { loaded, total: total || loaded, percent: 100 };
+    }
+    const dataUri = await toDataUri(blob);
+    // The native player accepts remote URLs reliably; the data URI is kept for runtimes that can play it offline.
+    getCache(storage)[voice.id] = dataUri || voice.url;
+    storage.audioDownloadProgress[voice.id] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100 };
     storage.audioDownloadState[voice.id] = "downloaded";
     return true;
-  } catch {
+  } catch (error) {
     storage.audioDownloadState[voice.id] = "failed";
+    storage.audioDownloadError[voice.id] = String(error);
     return false;
   }
 }
 
 export async function downloadAllVoices(storage: MuslimCordStorage): Promise<number> {
   let completed = 0;
-  for (const voice of [...AUDIO_VOICES, TAKBEER_VOICE]) {
+  for (const voice of AUDIO_VOICES) {
     if (await downloadVoice(storage, voice)) completed += 1;
   }
   return completed;
@@ -192,27 +227,17 @@ export async function downloadAllVoices(storage: MuslimCordStorage): Promise<num
 export function clearAudioCache(storage: MuslimCordStorage): void {
   storage.audioCache = {};
   storage.audioDownloadState = {};
+  storage.audioDownloadProgress = {};
+  storage.audioDownloadError = {};
 }
 
-export function playVoice(storage: MuslimCordStorage, voice: AudioVoice): void {
-  const cached = getCache(storage)[voice.id];
-  const source = cached || voice.url;
-  const played = playAudioUrl(source, voice.mime, playTakbeerFallback);
-  if (!played) playTakbeerFallback();
-}
-
-export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, prayerIndex = 0): void {
+export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, voiceId = storage.adhanVoice): void {
   if (mode === "simple") {
-    playTone(SIMPLE_TONE, 170);
+    playTone(880, 170);
     return;
   }
-  if (mode === "takbeer") {
-    playVoice(storage, TAKBEER_VOICE);
-    return;
-  }
-  const voice = getVoice(storage.adhanVoice || "ali-ahmed-mullah");
+  const voice = getVoice(voiceId || "ali-ahmed-mullah");
   const cached = getCache(storage)[voice.id];
-  const source = cached || voice.url;
-  const played = playAudioUrl(source, voice.mime, () => playTone(740, 340));
-  if (!played) playTone(740, 340);
+  // If a data URI is not accepted by Android's native player, retry the original URL automatically.
+  playSource(cached || voice.url, voice, cached ? voice.url : undefined);
 }

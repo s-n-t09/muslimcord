@@ -5,7 +5,7 @@ import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./Settings";
 import { getLanguage, translations, type Language } from "./i18n";
 import { fetchPrayerTimes, formatPrayerName, nextPrayer, resolveLocation, type Coordinates, type PrayerData, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, TAKBEER_VOICE, clearAudioCache, downloadAllVoices, downloadVoice, playReminderSound, playVoice, type AdhanVoiceId, type AudioDownloadState, type SoundMode } from "./sound";
+import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playReminderSound, type AdhanVoiceId, type AudioDownloadState, type AudioProgress, type SoundMode } from "./sound";
 
 export type IntervalPreset = "30m" | "1h" | "2h" | "3h" | "custom";
 
@@ -28,6 +28,8 @@ export type MuslimCordStorage = {
   adhanVoice: AdhanVoiceId;
   audioCache?: Record<string, string>;
   audioDownloadState?: Record<string, AudioDownloadState>;
+  audioDownloadProgress?: Record<string, AudioProgress>;
+  audioDownloadError?: Record<string, string>;
   lastDuaaAt: number;
   lastSalawatAt: number;
   nextDuaaAt: number;
@@ -56,6 +58,8 @@ const DEFAULTS: MuslimCordStorage = {
   adhanVoice: "ali-ahmed-mullah",
   audioCache: {},
   audioDownloadState: {},
+  audioDownloadProgress: {},
+  audioDownloadError: {},
   lastDuaaAt: Date.now(),
   lastSalawatAt: Date.now(),
   nextDuaaAt: Date.now() + 30 * 60_000,
@@ -77,6 +81,8 @@ function initializeStorage(): void {
   vstorage.lastPrayerAlerts ??= {};
   vstorage.audioCache ??= {};
   vstorage.audioDownloadState ??= {};
+  vstorage.audioDownloadProgress ??= {};
+  vstorage.audioDownloadError ??= {};
   // Migrate existing installations that only stored last-trigger timestamps.
   if (!Number.isFinite(vstorage.nextDuaaAt)) vstorage.nextDuaaAt = Date.now() + intervalMinutes(vstorage.duaaInterval, vstorage.duaaCustomMinutes) * 60_000;
   if (!Number.isFinite(vstorage.nextSalawatAt)) vstorage.nextSalawatAt = Date.now() + intervalMinutes(vstorage.salawatInterval, vstorage.salawatCustomMinutes) * 60_000 + 3 * 60_000;
@@ -176,7 +182,7 @@ function triggerPrayer(prayer: PrayerName, time: string, index: number): void {
   const key = `${todayKey()}-${prayer}`;
   if (vstorage.lastPrayerAlerts[key]) return;
   vstorage.lastPrayerAlerts[key] = new Date().toISOString();
-  playReminderSound(vstorage, vstorage.reminderSound, index);
+  playReminderSound(vstorage, vstorage.reminderSound);
   notify(`${localized.prayerReminder}: ${name}`, `${localized.prayerTimes}: ${time}`, localized.prayed);
 }
 
@@ -244,13 +250,8 @@ export async function testSalawat(): Promise<void> {
 }
 
 export function testAdhan(): void {
-  playReminderSound(vstorage, "adhan", 0);
+  playReminderSound(vstorage, "adhan");
   showToast(t().testAdhanDone);
-}
-
-export function testTakbeer(): void {
-  playVoice(vstorage, TAKBEER_VOICE);
-  showToast(t().testTakbeerDone);
 }
 
 export async function downloadSelectedAudio(): Promise<void> {
@@ -260,8 +261,9 @@ export async function downloadSelectedAudio(): Promise<void> {
 }
 
 export async function downloadAllAudio(): Promise<void> {
+  showToast(t().downloadStarted);
   const completed = await downloadAllVoices(vstorage);
-  showToast(`${t().audioDownloaded}: ${completed}/${AUDIO_VOICES.length + 1}`);
+  showToast(`${t().audioDownloaded}: ${completed}/${AUDIO_VOICES.length}`);
 }
 
 export function clearDownloadedAudio(): void {
@@ -270,7 +272,11 @@ export function clearDownloadedAudio(): void {
 }
 
 export function getAudioState(id: string): AudioDownloadState {
-  return vstorage.audioDownloadState?.[id] || (vstorage.audioCache?.[id] ? "downloaded" : "not-downloaded");
+  return readAudioState(vstorage, id);
+}
+
+export function getAudioProgress(id: string): AudioProgress | undefined {
+  return readAudioProgress(vstorage, id);
 }
 
 export function getNextPrayerText(): string {
