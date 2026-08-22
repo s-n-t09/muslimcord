@@ -282,6 +282,11 @@ export function testAdhan(): void {
   showToast(t().audioPlaybackStarted);
 }
 
+export function testFajrAdhan(): void {
+  playReminderSound(vstorage, "adhan", vstorage.adhanVoice, "fajr", () => showToast(t().audioPlaybackFailed));
+  showToast(t().fajrAdhanStarted);
+}
+
 export async function downloadSelectedAudio(): Promise<void> {
   const voice = AUDIO_VOICES.find((item) => item.id === vstorage.adhanVoice) || AUDIO_VOICES[0];
   const normal = await downloadVoice(vstorage, voice, "normal");

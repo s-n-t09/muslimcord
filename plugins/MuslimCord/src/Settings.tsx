@@ -1,7 +1,7 @@
 import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
-import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, setQuranFmEnabled, setQuranFmStation, stopQuranFmRadio, testAdhan, testDuaa, testQuranFm, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
+import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, setQuranFmEnabled, setQuranFmStation, stopQuranFmRadio, testAdhan, testDuaa, testFajrAdhan, testQuranFm, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
 import { AUDIO_VOICES, QURAN_FM_STATIONS, type AdhanVoiceId, type SoundMode } from "./sound";
 
@@ -143,6 +143,7 @@ export default function Settings() {
       <ActionRow label={localized.stopQuranFm} onPress={stopQuranFmRadio} />
       <FormRow label={localized.testSection} />
       <ActionRow label={localized.testAdhan} onPress={testAdhan} />
+      <ActionRow label={localized.testFajrAdhan} onPress={testFajrAdhan} />
       <ActionRow label={localized.testDuaa} onPress={() => void testDuaa()} />
       <ActionRow label={localized.testSalawat} onPress={() => void testSalawat()} />
       <FormText>{localized.stopAllReminders}: {vstorage.enabled ? localized.enabled : localized.stopped}</FormText>
