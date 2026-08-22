@@ -1,7 +1,7 @@
 import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
-import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, setQuranFmEnabled, setQuranFmStation, stopQuranFmRadio, testAdhan, testDuaa, testFajrAdhan, testQuranFm, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
+import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, setQuranFmEnabled, setQuranFmStation, stopQuranFmRadio, testAdhan, testDuaa, testFajrAdhan, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
 import { AUDIO_VOICES, QURAN_FM_STATIONS, type AdhanVoiceId, type SoundMode } from "./sound";
 
@@ -139,7 +139,6 @@ export default function Settings() {
       <FormRow label={localized.quranFmSection} subLabel={localized.quranFmHint} />
       <FormSwitchRow label={localized.quranFmEnabled} value={vstorage.quranFmEnabled} onValueChange={setQuranFmEnabled} />
       {QURAN_FM_STATIONS.map((station) => <FormRadioRow key={station.id} label={isArabic ? station.nameAr : station.name} selected={vstorage.quranFmStation === station.id} onPress={() => setQuranFmStation(station.id)} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />)}
-      <ActionRow label={localized.testQuranFm} onPress={testQuranFm} />
       <ActionRow label={localized.stopQuranFm} onPress={stopQuranFmRadio} />
       <FormRow label={localized.testSection} />
       <ActionRow label={localized.testAdhan} onPress={testAdhan} />

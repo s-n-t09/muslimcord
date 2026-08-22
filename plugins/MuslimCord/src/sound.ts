@@ -1,4 +1,5 @@
 import { findByProps } from "@vendetta/metro";
+import { url as vendettaUrl } from "@vendetta/metro/common";
 import type { MuslimCordStorage } from ".";
 
 export type SoundMode = "simple" | "adhan";
@@ -27,6 +28,8 @@ export type QuranFmStation = {
   url: string;
   sourceUrl: string;
 };
+
+export type QuranFmPlaybackResult = "native" | "web" | "external" | "failed";
 
 export const AUDIO_VOICES: AudioVoice[] = [
   {
@@ -99,10 +102,27 @@ function getCache(storage: MuslimCordStorage): Record<string, string> {
 
 let activeNativePlayer: any;
 let activeWebPlayer: any;
+let activeStreamManager: any;
+let activeStreamKey: number | undefined;
+let streamKeyCounter = 500000;
+
+function getNativeModules(): any | undefined {
+  try {
+    return (globalThis as any).ReactNative?.NativeModules || (globalThis as any).window?.ReactNative?.NativeModules;
+  } catch {
+    return undefined;
+  }
+}
 
 function stopNativeAudio(): void {
   try { activeNativePlayer?.stop?.(); } catch { /* ignored */ }
   activeNativePlayer = undefined;
+  if (activeStreamManager && activeStreamKey !== undefined) {
+    try { activeStreamManager.stop?.(activeStreamKey); } catch { /* ignored */ }
+    try { activeStreamManager.release?.(activeStreamKey); } catch { /* ignored */ }
+  }
+  activeStreamManager = undefined;
+  activeStreamKey = undefined;
 }
 
 function stopWebAudio(): void {
@@ -137,6 +157,45 @@ function playNativeAudio(url: string, onFailure?: () => void): boolean {
     onFailure?.();
     return false;
   }
+}
+
+function playNativeStream(url: string): Promise<boolean> {
+  const manager = getNativeModules()?.DCDSoundManager;
+  if (!manager?.prepare || !manager?.play) return Promise.resolve(false);
+  stopNativeAudio();
+  const key = ++streamKeyCounter;
+  activeStreamManager = manager;
+  activeStreamKey = key;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (success: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (!success && activeStreamKey === key) {
+        try { manager.release?.(key); } catch { /* ignored */ }
+        activeStreamManager = undefined;
+        activeStreamKey = undefined;
+      }
+      resolve(success);
+    };
+    try {
+      manager.prepare(url, "media", key, (error: unknown) => {
+        if (error !== null && error !== undefined && error !== "") {
+          finish(false);
+          return;
+        }
+        try {
+          manager.play(key);
+          finish(true);
+        } catch {
+          finish(false);
+        }
+      });
+      setTimeout(() => finish(false), 8000);
+    } catch {
+      finish(false);
+    }
+  });
 }
 
 function playTone(frequency = 880, duration = 180): void {
@@ -246,18 +305,17 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
       storage.audioDownloadProgress[target.key] = { loaded, total: total || loaded, percent: 100 };
     }
     const FileReaderCtor = (globalThis as any).FileReader;
-    let dataUri: string | null = null;
-    if (FileReaderCtor) {
-      dataUri = await new Promise<string | null>((resolve) => {
-        try {
-          const reader = new FileReaderCtor();
-          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(blob);
-        } catch { resolve(null); }
-      });
-    }
-    getCache(storage)[target.key] = dataUri || target.url;
+    if (!FileReaderCtor) throw new Error("Local audio storage is unavailable in this client");
+    const dataUri = await new Promise<string | null>((resolve) => {
+      try {
+        const reader = new FileReaderCtor();
+        reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      } catch { resolve(null); }
+    });
+    if (!dataUri) throw new Error("Could not create a local audio copy");
+    getCache(storage)[target.key] = dataUri;
     storage.audioDownloadProgress[target.key] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100 };
     storage.audioDownloadState[target.key] = "downloaded";
     return true;
@@ -296,11 +354,29 @@ export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, v
   playSource(target.url, target.mime, cached && cached !== target.url ? cached : undefined, onFailure);
 }
 
-export function playQuranFm(stationId: QuranFmStationId, onFailure?: () => void): boolean {
+export function playDownloadedAdhan(storage: MuslimCordStorage, voiceId: AdhanVoiceId, variant: AdhanVariant, onMissing?: () => void, onFailure?: () => void): boolean {
+  const voice = getVoice(voiceId);
+  const target = getVoiceVariant(voice, variant);
+  const cached = getCache(storage)[target.key];
+  const isLocal = Boolean(cached && cached !== target.url && !/^https?:\/\//i.test(cached));
+  if (!isLocal) {
+    onMissing?.();
+    return false;
+  }
+  playSource(cached, target.mime, undefined, onFailure);
+  return true;
+}
+
+export async function playQuranFm(stationId: QuranFmStationId, onFailure?: () => void): Promise<QuranFmPlaybackResult> {
   const station = QURAN_FM_STATIONS.find((item) => item.id === stationId) || QURAN_FM_STATIONS[0];
   stopQuranFm();
-  if (playNativeAudio(station.url, onFailure)) return true;
-  if (playWebAudio(station.url, "audio/mpeg", onFailure)) return true;
-  onFailure?.();
-  return false;
+  if (await playNativeStream(station.url)) return "native";
+  if (playWebAudio(station.url, "audio/mpeg", onFailure)) return "web";
+  try {
+    vendettaUrl.openURL(station.url);
+    return "external";
+  } catch {
+    onFailure?.();
+    return "failed";
+  }
 }

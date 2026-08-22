@@ -5,7 +5,7 @@ import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./Settings";
 import { getLanguage, translations, type Language } from "./i18n";
 import { fetchPrayerTimes, formatPrayerName, nextPrayer, resolveLocation, type Coordinates, type PrayerData, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playQuranFm, playReminderSound, stopQuranFm, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type QuranFmStationId, type SoundMode } from "./sound";
+import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playDownloadedAdhan, playQuranFm, playReminderSound, stopQuranFm, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type QuranFmPlaybackResult, type QuranFmStationId, type SoundMode } from "./sound";
 
 export type IntervalPreset = "30m" | "1h" | "2h" | "3h" | "custom";
 
@@ -75,6 +75,7 @@ const DEFAULTS: MuslimCordStorage = {
 
 let scheduler: ReturnType<typeof setTimeout> | undefined;
 let refreshing = false;
+let quranFmRequest = 0;
 let duaIndex = 0;
 let salawatIndex = 0;
 
@@ -278,13 +279,13 @@ export async function testSalawat(): Promise<void> {
 }
 
 export function testAdhan(): void {
-  playReminderSound(vstorage, "adhan", vstorage.adhanVoice, "normal", () => showToast(t().audioPlaybackFailed));
-  showToast(t().audioPlaybackStarted);
+  const started = playDownloadedAdhan(vstorage, vstorage.adhanVoice, "normal", () => showToast(t().audioNotDownloaded), () => showToast(t().audioPlaybackFailed));
+  if (started) showToast(t().audioPlaybackStarted);
 }
 
 export function testFajrAdhan(): void {
-  playReminderSound(vstorage, "adhan", vstorage.adhanVoice, "fajr", () => showToast(t().audioPlaybackFailed));
-  showToast(t().fajrAdhanStarted);
+  const started = playDownloadedAdhan(vstorage, vstorage.adhanVoice, "fajr", () => showToast(t().audioNotDownloaded), () => showToast(t().audioPlaybackFailed));
+  if (started) showToast(t().fajrAdhanStarted);
 }
 
 export async function downloadSelectedAudio(): Promise<void> {
@@ -311,23 +312,30 @@ export function getAudioState(id: string): AudioDownloadState {
 export function getAudioProgress(id: string): AudioProgress | undefined {
   return readAudioProgress(vstorage, id);
 }
+async function startQuranFm(): Promise<QuranFmPlaybackResult> {
+  const request = ++quranFmRequest;
+  const result = await playQuranFm(vstorage.quranFmStation, () => showToast(t().quranFmPlaybackFailed));
+  if (request !== quranFmRequest || !vstorage.quranFmEnabled) {
+    stopQuranFm();
+    return result;
+  }
+  if (result === "failed") showToast(t().quranFmPlaybackFailed);
+  else if (result === "external") showToast(t().quranFmOpenedExternally);
+  else showToast(t().quranFmStarted);
+  return result;
+}
 export function setQuranFmEnabled(enabled: boolean): void {
+  ++quranFmRequest;
   vstorage.quranFmEnabled = enabled;
-  if (enabled) {
-    playQuranFm(vstorage.quranFmStation, () => showToast(t().quranFmPlaybackFailed));
-    showToast(t().quranFmStarted);
-  } else {
+  if (enabled) void startQuranFm();
+  else {
     stopQuranFm();
     showToast(t().quranFmStopped);
   }
 }
 export function setQuranFmStation(station: QuranFmStationId): void {
   vstorage.quranFmStation = station;
-  if (vstorage.quranFmEnabled) playQuranFm(station, () => showToast(t().quranFmPlaybackFailed));
-}
-export function testQuranFm(): void {
-  playQuranFm(vstorage.quranFmStation, () => showToast(t().quranFmPlaybackFailed));
-  showToast(t().quranFmStarted);
+  if (vstorage.quranFmEnabled) void startQuranFm();
 }
 export function stopQuranFmRadio(): void {
   vstorage.quranFmEnabled = false;
@@ -351,6 +359,7 @@ export function onLoad(): void {
 export function onUnload(): void {
   if (scheduler) clearTimeout(scheduler);
   scheduler = undefined;
+  ++quranFmRequest;
   stopQuranFm();
   logger.log("MuslimCord unloaded");
 }
