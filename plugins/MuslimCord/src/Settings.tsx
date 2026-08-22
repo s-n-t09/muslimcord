@@ -1,9 +1,9 @@
 import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
-import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, testAdhan, testDuaa, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
+import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, setQuranFmEnabled, setQuranFmStation, stopQuranFmRadio, testAdhan, testDuaa, testQuranFm, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, type AdhanVoiceId, type SoundMode } from "./sound";
+import { AUDIO_VOICES, QURAN_FM_STATIONS, type AdhanVoiceId, type SoundMode } from "./sound";
 
 const { FormRow, FormText, FormInput, FormRadioRow, FormSwitchRow } = Forms;
 const LOCATION_HELP_URL = "https://www.openstreetmap.org/search";
@@ -124,15 +124,23 @@ export default function Settings() {
       {vstorage.reminderSound === "adhan" && <>
         <FormRow label={localized.adhanVoice} />
         {AUDIO_VOICES.map((voice) => {
-          const state = getAudioState(voice.id);
-          const progress = getAudioProgress(voice.id);
-          return <FormRadioRow key={voice.id} label={isArabic ? voice.nameAr : voice.name} subLabel={`${downloadLabel(state, progress, localized)} · ${voice.attribution}`} selected={vstorage.adhanVoice === voice.id} onPress={() => (vstorage.adhanVoice = voice.id as AdhanVoiceId)} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />;
+          const normalState = getAudioState(`${voice.id}:normal`);
+          const normalProgress = getAudioProgress(`${voice.id}:normal`);
+          const fajrState = getAudioState(`${voice.id}:fajr`);
+          const fajrProgress = getAudioProgress(`${voice.id}:fajr`);
+          const status = `${localized.normalAdhan}: ${downloadLabel(normalState, normalProgress, localized)} · ${localized.fajrAdhan}: ${downloadLabel(fajrState, fajrProgress, localized)}`;
+          return <FormRadioRow key={voice.id} label={isArabic ? voice.nameAr : voice.name} subLabel={`${status} · ${voice.attribution}`} selected={vstorage.adhanVoice === voice.id} onPress={() => (vstorage.adhanVoice = voice.id as AdhanVoiceId)} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />;
         })}
       </>}
       <FormRow label={localized.audioSection} subLabel={localized.audioProgressHint} />
       <ActionRow label={localized.downloadVoice} onPress={() => void downloadSelectedAudio()} />
       <ActionRow label={localized.downloadAll} onPress={() => void downloadAllAudio()} />
       <ActionRow label={localized.clearDownloads} onPress={clearDownloadedAudio} />
+      <FormRow label={localized.quranFmSection} subLabel={localized.quranFmHint} />
+      <FormSwitchRow label={localized.quranFmEnabled} value={vstorage.quranFmEnabled} onValueChange={setQuranFmEnabled} />
+      {QURAN_FM_STATIONS.map((station) => <FormRadioRow key={station.id} label={isArabic ? station.nameAr : station.name} selected={vstorage.quranFmStation === station.id} onPress={() => setQuranFmStation(station.id)} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />)}
+      <ActionRow label={localized.testQuranFm} onPress={testQuranFm} />
+      <ActionRow label={localized.stopQuranFm} onPress={stopQuranFmRadio} />
       <FormRow label={localized.testSection} />
       <ActionRow label={localized.testAdhan} onPress={testAdhan} />
       <ActionRow label={localized.testDuaa} onPress={() => void testDuaa()} />

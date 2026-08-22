@@ -2,7 +2,9 @@ import { findByProps } from "@vendetta/metro";
 import type { MuslimCordStorage } from ".";
 
 export type SoundMode = "simple" | "adhan";
-export type AdhanVoiceId = "ali-ahmed-mullah" | "sabah-fakhry" | "aaqib-azeez" | "doha-qatar";
+export type AdhanVoiceId = "ali-ahmed-mullah" | "mishary-alafasy" | "doha-qatar";
+export type AdhanVariant = "normal" | "fajr";
+export type QuranFmStationId = "cairo" | "saudi" | "usa";
 export type AudioDownloadState = "not-downloaded" | "downloading" | "downloaded" | "failed";
 export type AudioProgress = { loaded: number; total: number; percent: number };
 
@@ -10,10 +12,20 @@ export type AudioVoice = {
   id: AdhanVoiceId;
   name: string;
   nameAr: string;
-  url: string;
-  mime: string;
+  normalUrl: string;
+  fajrUrl: string;
+  normalMime: string;
+  fajrMime: string;
   attribution: string;
   attributionUrl: string;
+};
+
+export type QuranFmStation = {
+  id: QuranFmStationId;
+  name: string;
+  nameAr: string;
+  url: string;
+  sourceUrl: string;
 };
 
 export const AUDIO_VOICES: AudioVoice[] = [
@@ -21,39 +33,64 @@ export const AUDIO_VOICES: AudioVoice[] = [
     id: "ali-ahmed-mullah",
     name: "Sheikh Ali Ahmed Mullah",
     nameAr: "الشيخ علي أحمد ملا",
-    url: "https://archive.org/download/MakkahAzan/12thNov09IshaAzanBySheikhAliAhmedMullah_512kb.mp4",
-    mime: "audio/mp4",
-    attribution: "Makkah Azan — Sheikh Ali Ahmed Mullah, public-domain Archive item",
+    normalUrl: "https://archive.org/download/MakkahAzan/12thNov09IshaAzanBySheikhAliAhmedMullah_512kb.mp4",
+    fajrUrl: "https://archive.org/download/MakkahFajrAdhan6913SheikhAliMullah/Makkah%20Fajr%20Adhan%206-9-13%20Sheikh%20Ali%20Mullah.mp3",
+    normalMime: "audio/mp4",
+    fajrMime: "audio/mpeg",
+    attribution: "Makkah Azan archive — Sheikh Ali Ahmed Mullah",
     attributionUrl: "https://archive.org/details/MakkahAzan",
   },
   {
-    id: "sabah-fakhry",
-    name: "Sabah Fakhry",
-    nameAr: "صباح فخري",
-    url: "https://upload.wikimedia.org/wikipedia/commons/2/27/Call_to_prayer_by_Sabah_Fakhry.mp3",
-    mime: "audio/mpeg",
-    attribution: "Call to prayer by Sabah Fakhry — Wikimedia Commons public domain",
-    attributionUrl: "https://commons.wikimedia.org/wiki/File:Call_to_prayer_by_Sabah_Fakhry.mp3",
-  },
-  {
-    id: "aaqib-azeez",
-    name: "Aaqib Azeez",
-    nameAr: "عاقب عزيز",
-    url: "https://upload.wikimedia.org/wikipedia/commons/7/7d/The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3",
-    mime: "audio/mpeg",
-    attribution: "The Adhan by Aaqib Azeez — Wikimedia Commons CC BY-SA 4.0",
-    attributionUrl: "https://commons.wikimedia.org/wiki/File:The_Adhan_-_Muslim_Call_to_Prayer_-_Aaqib_Azeez.mp3",
+    id: "mishary-alafasy",
+    name: "Sheikh Mishary Rashid Alafasy",
+    nameAr: "الشيخ مشاري راشد العفاسي",
+    normalUrl: "https://media.assabile.com/assabile/adhan_3435370/e9ab8052fdb8.mp3",
+    fajrUrl: "https://media.assabile.com/assabile/adhan_3435370/ddb21f7363eb.mp3",
+    normalMime: "audio/mpeg",
+    fajrMime: "audio/mpeg",
+    attribution: "Mishary Rashid Alafasy — Adhan Al Kuwait / Adhan Al Fajr Al Kuwait",
+    attributionUrl: "https://www.assabile.com/adhan-call-prayer",
   },
   {
     id: "doha-qatar",
     name: "Doha, Qatar public recording",
     nameAr: "تسجيل عام من الدوحة، قطر",
-    url: "https://archive.org/download/adhan.recordings.from.doha.qatar/Adhan_Doha_Qatar_01_Fajr_Adhan.mp3",
-    mime: "audio/mpeg",
-    attribution: "Adhan Recordings from Doha, Qatar — public domain",
+    normalUrl: "https://archive.org/download/adhan.recordings.from.doha.qatar/Adhan_Doha_Qatar_02_Dhuhr_Adhan.mp3",
+    fajrUrl: "https://archive.org/download/adhan.recordings.from.doha.qatar/Adhan_Doha_Qatar_01_Fajr_Adhan.mp3",
+    normalMime: "audio/mpeg",
+    fajrMime: "audio/mpeg",
+    attribution: "Adhan Recordings from Doha, Qatar — public-domain archive item",
     attributionUrl: "https://archive.org/details/adhan.recordings.from.doha.qatar",
   },
 ];
+
+export const QURAN_FM_STATIONS: QuranFmStation[] = [
+  {
+    id: "cairo",
+    name: "Quran Radio Cairo — 98.2 FM",
+    nameAr: "إذاعة القرآن الكريم من القاهرة — ٩٨.٢ FM",
+    url: "https://stream.radiojar.com/8s5u5tpdtwzuv",
+    sourceUrl: "https://surahquran.com/Radio-Quran-Cairo.html",
+  },
+  {
+    id: "saudi",
+    name: "Quran Radio Saudi Arabia",
+    nameAr: "إذاعة القرآن الكريم من السعودية",
+    url: "https://stream.radiojar.com/4wqre23fytzuv",
+    sourceUrl: "https://surahquran.com/Radio-Quran-Saudi.html",
+  },
+  {
+    id: "usa",
+    name: "Quran Radio USA — Tarateel",
+    nameAr: "إذاعة القرآن الكريم USA — ترتيل",
+    url: "https://qurango.net/radio/tarateel",
+    sourceUrl: "https://surahquran.com/Radio-Quran-USA.html",
+  },
+];
+
+function cacheKey(id: AdhanVoiceId, variant: AdhanVariant): string {
+  return `${id}:${variant}`;
+}
 
 function getCache(storage: MuslimCordStorage): Record<string, string> {
   storage.audioCache ??= {};
@@ -61,6 +98,22 @@ function getCache(storage: MuslimCordStorage): Record<string, string> {
 }
 
 let activeNativePlayer: any;
+let activeWebPlayer: any;
+
+function stopNativeAudio(): void {
+  try { activeNativePlayer?.stop?.(); } catch { /* ignored */ }
+  activeNativePlayer = undefined;
+}
+
+function stopWebAudio(): void {
+  try { activeWebPlayer?.pause?.(); activeWebPlayer?.removeAttribute?.("src"); activeWebPlayer?.load?.(); } catch { /* ignored */ }
+  activeWebPlayer = undefined;
+}
+
+export function stopQuranFm(): void {
+  stopNativeAudio();
+  stopWebAudio();
+}
 
 function getNativeAudioSound(): any | undefined {
   try {
@@ -74,36 +127,16 @@ function playNativeAudio(url: string, onFailure?: () => void): boolean {
   const MobileAudioSound = getNativeAudioSound();
   if (!MobileAudioSound) return false;
   try {
-    void activeNativePlayer?.stop?.();
-    // Discord's MobileAudioSound constructor expects the internal sound key
-    // (for example vibing_wumpus), not the public usage name "media".
-    // The key is mapped to the native MEDIA channel by Discord itself.
+    stopNativeAudio();
     activeNativePlayer = new MobileAudioSound(url, "vibing_wumpus", 0.85, "default", false);
     if (typeof activeNativePlayer.play !== "function") return false;
-    // MobileAudioSound.play() performs its own preload wait. Calling it directly avoids
-    // relying on an onLoad callback that some Stable builds never emit.
-    const playPromise = activeNativePlayer.play();
-    playPromise?.catch?.(() => onFailure?.());
+    const result = activeNativePlayer.play();
+    result?.catch?.(() => onFailure?.());
     return true;
   } catch {
     onFailure?.();
     return false;
   }
-}
-
-function toDataUri(blob: Blob): Promise<string | null> {
-  return new Promise((resolve) => {
-    try {
-      const FileReaderCtor = (globalThis as any).FileReader;
-      if (!FileReaderCtor) return resolve(null);
-      const reader = new FileReaderCtor();
-      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    } catch {
-      resolve(null);
-    }
-  });
 }
 
 function playTone(frequency = 880, duration = 180): void {
@@ -122,20 +155,20 @@ function playTone(frequency = 880, duration = 180): void {
     gain.connect(context.destination);
     oscillator.start();
     oscillator.stop(context.currentTime + duration / 1000 + 0.02);
-  } catch {
-    // No Web Audio API in this runtime.
-  }
+  } catch { /* no Web Audio API */ }
 }
 
 function playWebAudio(url: string, mime: string, onFailure?: () => void): boolean {
   try {
     const AudioCtor = (globalThis as any).Audio;
     if (!AudioCtor) return false;
+    stopWebAudio();
     const player = new AudioCtor(url);
     player.type = mime;
     player.volume = 0.85;
+    activeWebPlayer = player;
     const promise = player.play?.();
-    if (promise?.catch) promise.catch(() => onFailure?.());
+    promise?.catch?.(() => onFailure?.());
     return true;
   } catch {
     onFailure?.();
@@ -143,32 +176,33 @@ function playWebAudio(url: string, mime: string, onFailure?: () => void): boolea
   }
 }
 
-function playSource(url: string, voice: AudioVoice, fallbackUrl?: string, onFailure?: () => void): boolean {
+function playSource(url: string, mime: string, fallbackUrl?: string, onFailure?: () => void): boolean {
   let fallbackUsed = false;
-  const retryRemote = () => {
-    if (fallbackUsed || !fallbackUrl || fallbackUrl === url) {
-      playTone(740, 340);
-      onFailure?.();
-      return;
+  const failed = () => {
+    if (!fallbackUsed && fallbackUrl && fallbackUrl !== url) {
+      fallbackUsed = true;
+      if (playNativeAudio(fallbackUrl, () => playWebAudio(fallbackUrl, mime, () => { playTone(740, 340); onFailure?.(); }))) return;
+      if (playWebAudio(fallbackUrl, mime, () => { playTone(740, 340); onFailure?.(); })) return;
     }
-    fallbackUsed = true;
-    if (!playNativeAudio(fallbackUrl, () => playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340)))) {
-      if (!playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340))) playTone(740, 340);
-    }
+    playTone(740, 340);
+    onFailure?.();
   };
-  if (playNativeAudio(url, retryRemote)) return true;
-  if (playWebAudio(url, voice.mime, retryRemote)) return true;
-  if (fallbackUrl && fallbackUrl !== url) {
-    if (playNativeAudio(fallbackUrl, () => playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340)))) return true;
-    if (playWebAudio(fallbackUrl, voice.mime, () => playTone(740, 340))) return true;
-  }
-  playTone(740, 340);
-  onFailure?.();
+  if (playNativeAudio(url, failed)) return true;
+  if (playWebAudio(url, mime, failed)) return true;
+  failed();
   return false;
 }
 
 export function getVoice(id: AdhanVoiceId): AudioVoice {
   return AUDIO_VOICES.find((voice) => voice.id === id) || AUDIO_VOICES[0];
+}
+
+export function getVoiceVariant(voice: AudioVoice, variant: AdhanVariant): { url: string; mime: string; key: string } {
+  return {
+    url: variant === "fajr" ? voice.fajrUrl : voice.normalUrl,
+    mime: variant === "fajr" ? voice.fajrMime : voice.normalMime,
+    key: cacheKey(voice.id, variant),
+  };
 }
 
 export function getAudioState(storage: MuslimCordStorage, id: string): AudioDownloadState {
@@ -179,15 +213,16 @@ export function getAudioProgress(storage: MuslimCordStorage, id: string): AudioP
   return storage.audioDownloadProgress?.[id];
 }
 
-export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoice): Promise<boolean> {
+export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoice, variant: AdhanVariant): Promise<boolean> {
+  const target = getVoiceVariant(voice, variant);
   storage.audioDownloadState ??= {};
   storage.audioDownloadProgress ??= {};
   storage.audioDownloadError ??= {};
-  storage.audioDownloadState[voice.id] = "downloading";
-  storage.audioDownloadProgress[voice.id] = { loaded: 0, total: 0, percent: 0 };
-  delete storage.audioDownloadError[voice.id];
+  storage.audioDownloadState[target.key] = "downloading";
+  storage.audioDownloadProgress[target.key] = { loaded: 0, total: 0, percent: 0 };
+  delete storage.audioDownloadError[target.key];
   try {
-    const response = await fetch(voice.url, { cache: "force-cache" });
+    const response = await fetch(target.url, { cache: "force-cache" });
     if (!response.ok) throw new Error(`Audio download failed: ${response.status}`);
     const total = Number(response.headers.get("content-length") || 0);
     let loaded = 0;
@@ -201,24 +236,34 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
         if (item.value) {
           chunks.push(item.value);
           loaded += item.value.byteLength;
-          storage.audioDownloadProgress[voice.id] = { loaded, total, percent: total ? Math.min(100, Math.round((loaded / total) * 100)) : 0 };
+          storage.audioDownloadProgress[target.key] = { loaded, total, percent: total ? Math.min(100, Math.round((loaded / total) * 100)) : 0 };
         }
       }
-      blob = new Blob(chunks as unknown as BlobPart[], { type: voice.mime });
+      blob = new Blob(chunks as unknown as BlobPart[], { type: target.mime });
     } else {
       blob = await response.blob();
       loaded = blob.size;
-      storage.audioDownloadProgress[voice.id] = { loaded, total: total || loaded, percent: 100 };
+      storage.audioDownloadProgress[target.key] = { loaded, total: total || loaded, percent: 100 };
     }
-    const dataUri = await toDataUri(blob);
-    // The native player accepts remote URLs reliably; the data URI is kept for runtimes that can play it offline.
-    getCache(storage)[voice.id] = dataUri || voice.url;
-    storage.audioDownloadProgress[voice.id] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100 };
-    storage.audioDownloadState[voice.id] = "downloaded";
+    const FileReaderCtor = (globalThis as any).FileReader;
+    let dataUri: string | null = null;
+    if (FileReaderCtor) {
+      dataUri = await new Promise<string | null>((resolve) => {
+        try {
+          const reader = new FileReaderCtor();
+          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        } catch { resolve(null); }
+      });
+    }
+    getCache(storage)[target.key] = dataUri || target.url;
+    storage.audioDownloadProgress[target.key] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100 };
+    storage.audioDownloadState[target.key] = "downloaded";
     return true;
   } catch (error) {
-    storage.audioDownloadState[voice.id] = "failed";
-    storage.audioDownloadError[voice.id] = String(error);
+    storage.audioDownloadState[target.key] = "failed";
+    storage.audioDownloadError[target.key] = String(error);
     return false;
   }
 }
@@ -226,7 +271,9 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
 export async function downloadAllVoices(storage: MuslimCordStorage): Promise<number> {
   let completed = 0;
   for (const voice of AUDIO_VOICES) {
-    if (await downloadVoice(storage, voice)) completed += 1;
+    for (const variant of ["normal", "fajr"] as const) {
+      if (await downloadVoice(storage, voice, variant)) completed += 1;
+    }
   }
   return completed;
 }
@@ -238,14 +285,22 @@ export function clearAudioCache(storage: MuslimCordStorage): void {
   storage.audioDownloadError = {};
 }
 
-export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, voiceId = storage.adhanVoice, onFailure?: () => void): void {
+export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, voiceId = storage.adhanVoice, variant: AdhanVariant = "normal", onFailure?: () => void): void {
   if (mode === "simple") {
     playTone(880, 170);
     return;
   }
   const voice = getVoice(voiceId || "ali-ahmed-mullah");
-  const cached = getCache(storage)[voice.id];
-  // Native Android players generally reject data: URIs. Prefer the verified remote media URL;
-  // keep the cache as a fallback for web-capable runtimes.
-  playSource(voice.url, voice, cached && cached !== voice.url ? cached : undefined, onFailure);
+  const target = getVoiceVariant(voice, variant);
+  const cached = getCache(storage)[target.key];
+  playSource(target.url, target.mime, cached && cached !== target.url ? cached : undefined, onFailure);
+}
+
+export function playQuranFm(stationId: QuranFmStationId, onFailure?: () => void): boolean {
+  const station = QURAN_FM_STATIONS.find((item) => item.id === stationId) || QURAN_FM_STATIONS[0];
+  stopQuranFm();
+  if (playNativeAudio(station.url, onFailure)) return true;
+  if (playWebAudio(station.url, "audio/mpeg", onFailure)) return true;
+  onFailure?.();
+  return false;
 }

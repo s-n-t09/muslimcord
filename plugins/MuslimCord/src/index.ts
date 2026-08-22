@@ -5,7 +5,7 @@ import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./Settings";
 import { getLanguage, translations, type Language } from "./i18n";
 import { fetchPrayerTimes, formatPrayerName, nextPrayer, resolveLocation, type Coordinates, type PrayerData, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playReminderSound, type AdhanVoiceId, type AudioDownloadState, type AudioProgress, type SoundMode } from "./sound";
+import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playQuranFm, playReminderSound, stopQuranFm, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type QuranFmStationId, type SoundMode } from "./sound";
 
 export type IntervalPreset = "30m" | "1h" | "2h" | "3h" | "custom";
 
@@ -26,6 +26,8 @@ export type MuslimCordStorage = {
   salawatCustomMinutes: number;
   reminderSound: SoundMode;
   adhanVoice: AdhanVoiceId;
+  quranFmEnabled: boolean;
+  quranFmStation: QuranFmStationId;
   audioCache?: Record<string, string>;
   audioDownloadState?: Record<string, AudioDownloadState>;
   audioDownloadProgress?: Record<string, AudioProgress>;
@@ -56,6 +58,8 @@ const DEFAULTS: MuslimCordStorage = {
   salawatCustomMinutes: 60,
   reminderSound: "simple",
   adhanVoice: "ali-ahmed-mullah",
+  quranFmEnabled: false,
+  quranFmStation: "cairo",
   audioCache: {},
   audioDownloadState: {},
   audioDownloadProgress: {},
@@ -87,7 +91,9 @@ function initializeStorage(): void {
   if (!Number.isFinite(vstorage.nextDuaaAt)) vstorage.nextDuaaAt = Date.now() + intervalMinutes(vstorage.duaaInterval, vstorage.duaaCustomMinutes) * 60_000;
   if (!Number.isFinite(vstorage.nextSalawatAt)) vstorage.nextSalawatAt = Date.now() + intervalMinutes(vstorage.salawatInterval, vstorage.salawatCustomMinutes) * 60_000 + 3 * 60_000;
   if (!Number.isFinite(vstorage.salawatNotBefore)) vstorage.salawatNotBefore = Date.now() + 3 * 60_000;
-  vstorage.adhanVoice ??= "ali-ahmed-mullah";
+  if (!AUDIO_VOICES.some((voice) => voice.id === vstorage.adhanVoice)) vstorage.adhanVoice = "ali-ahmed-mullah";
+  vstorage.quranFmEnabled ??= false;
+  vstorage.quranFmStation ??= "cairo";
 }
 
 export function language(): Language {
@@ -187,7 +193,8 @@ function triggerPrayer(prayer: PrayerName, time: string): void {
   vstorage.lastPrayerAlerts[key] = new Date().toISOString();
   // Sunrise is a notification only; it must never play an adhan.
   const soundMode = prayer === "Sunrise" ? "simple" : vstorage.reminderSound;
-  playReminderSound(vstorage, soundMode, undefined, () => showToast(localized.audioPlaybackFailed));
+  const variant: AdhanVariant = prayer === "Fajr" ? "fajr" : "normal";
+  playReminderSound(vstorage, soundMode, vstorage.adhanVoice, variant, () => showToast(localized.audioPlaybackFailed));
   notify(`${localized.prayerReminder}: ${name}`, `${localized.prayerTimes}: ${time}`, localized.prayed);
 }
 
@@ -271,20 +278,21 @@ export async function testSalawat(): Promise<void> {
 }
 
 export function testAdhan(): void {
-  playReminderSound(vstorage, "adhan", undefined, () => showToast(t().audioPlaybackFailed));
+  playReminderSound(vstorage, "adhan", vstorage.adhanVoice, "normal", () => showToast(t().audioPlaybackFailed));
   showToast(t().audioPlaybackStarted);
 }
 
 export async function downloadSelectedAudio(): Promise<void> {
   const voice = AUDIO_VOICES.find((item) => item.id === vstorage.adhanVoice) || AUDIO_VOICES[0];
-  const success = await downloadVoice(vstorage, voice);
-  showToast(success ? t().audioDownloaded : t().audioDownloadFailed);
+  const normal = await downloadVoice(vstorage, voice, "normal");
+  const fajr = await downloadVoice(vstorage, voice, "fajr");
+  showToast(normal && fajr ? t().audioDownloaded : t().audioDownloadFailed);
 }
 
 export async function downloadAllAudio(): Promise<void> {
   showToast(t().downloadStarted);
   const completed = await downloadAllVoices(vstorage);
-  showToast(`${t().audioDownloaded}: ${completed}/${AUDIO_VOICES.length}`);
+  showToast(`${t().audioDownloaded}: ${completed}/${AUDIO_VOICES.length * 2}`);
 }
 
 export function clearDownloadedAudio(): void {
@@ -295,9 +303,31 @@ export function clearDownloadedAudio(): void {
 export function getAudioState(id: string): AudioDownloadState {
   return readAudioState(vstorage, id);
 }
-
 export function getAudioProgress(id: string): AudioProgress | undefined {
   return readAudioProgress(vstorage, id);
+}
+export function setQuranFmEnabled(enabled: boolean): void {
+  vstorage.quranFmEnabled = enabled;
+  if (enabled) {
+    playQuranFm(vstorage.quranFmStation, () => showToast(t().quranFmPlaybackFailed));
+    showToast(t().quranFmStarted);
+  } else {
+    stopQuranFm();
+    showToast(t().quranFmStopped);
+  }
+}
+export function setQuranFmStation(station: QuranFmStationId): void {
+  vstorage.quranFmStation = station;
+  if (vstorage.quranFmEnabled) playQuranFm(station, () => showToast(t().quranFmPlaybackFailed));
+}
+export function testQuranFm(): void {
+  playQuranFm(vstorage.quranFmStation, () => showToast(t().quranFmPlaybackFailed));
+  showToast(t().quranFmStarted);
+}
+export function stopQuranFmRadio(): void {
+  vstorage.quranFmEnabled = false;
+  stopQuranFm();
+  showToast(t().quranFmStopped);
 }
 
 export function getNextPrayerText(): string {
@@ -316,6 +346,7 @@ export function onLoad(): void {
 export function onUnload(): void {
   if (scheduler) clearTimeout(scheduler);
   scheduler = undefined;
+  stopQuranFm();
   logger.log("MuslimCord unloaded");
 }
 
