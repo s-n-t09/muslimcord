@@ -1,9 +1,9 @@
 import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
-import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, setQuranFmEnabled, setQuranFmStation, stopQuranFmRadio, testAdhan, testDuaa, testFajrAdhan, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
+import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, testAdhan, testDuaa, testFajrAdhan, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, QURAN_FM_STATIONS, type AdhanVoiceId, type SoundMode } from "./sound";
+import { AUDIO_VOICES, type AdhanVoiceId, type SoundMode } from "./sound";
 
 const { FormRow, FormText, FormInput, FormRadioRow, FormSwitchRow } = Forms;
 const LOCATION_HELP_URL = "https://www.openstreetmap.org/search";
@@ -136,10 +136,6 @@ export default function Settings() {
       <ActionRow label={localized.downloadVoice} onPress={() => void downloadSelectedAudio()} />
       <ActionRow label={localized.downloadAll} onPress={() => void downloadAllAudio()} />
       <ActionRow label={localized.clearDownloads} onPress={clearDownloadedAudio} />
-      <FormRow label={localized.quranFmSection} subLabel={localized.quranFmHint} />
-      <FormSwitchRow label={localized.quranFmEnabled} value={vstorage.quranFmEnabled} onValueChange={setQuranFmEnabled} />
-      {QURAN_FM_STATIONS.map((station) => <FormRadioRow key={station.id} label={isArabic ? station.nameAr : station.name} selected={vstorage.quranFmStation === station.id} onPress={() => setQuranFmStation(station.id)} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />)}
-      <ActionRow label={localized.stopQuranFm} onPress={stopQuranFmRadio} />
       <FormRow label={localized.testSection} />
       <ActionRow label={localized.testAdhan} onPress={testAdhan} />
       <ActionRow label={localized.testFajrAdhan} onPress={testFajrAdhan} />

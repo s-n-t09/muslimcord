@@ -1,11 +1,9 @@
 import { findByProps } from "@vendetta/metro";
-import { url as vendettaUrl } from "@vendetta/metro/common";
 import type { MuslimCordStorage } from ".";
 
 export type SoundMode = "simple" | "adhan";
 export type AdhanVoiceId = "ali-ahmed-mullah" | "mishary-alafasy" | "doha-qatar";
 export type AdhanVariant = "normal" | "fajr";
-export type QuranFmStationId = "cairo" | "saudi" | "usa";
 export type AudioDownloadState = "not-downloaded" | "downloading" | "downloaded" | "failed";
 export type AudioProgress = { loaded: number; total: number; percent: number };
 
@@ -20,16 +18,6 @@ export type AudioVoice = {
   attribution: string;
   attributionUrl: string;
 };
-
-export type QuranFmStation = {
-  id: QuranFmStationId;
-  name: string;
-  nameAr: string;
-  url: string;
-  sourceUrl: string;
-};
-
-export type QuranFmPlaybackResult = "native" | "web" | "external" | "failed";
 
 export const AUDIO_VOICES: AudioVoice[] = [
   {
@@ -67,30 +55,6 @@ export const AUDIO_VOICES: AudioVoice[] = [
   },
 ];
 
-export const QURAN_FM_STATIONS: QuranFmStation[] = [
-  {
-    id: "cairo",
-    name: "Quran Radio Cairo — 98.2 FM",
-    nameAr: "إذاعة القرآن الكريم من القاهرة — ٩٨.٢ FM",
-    url: "https://stream.radiojar.com/8s5u5tpdtwzuv",
-    sourceUrl: "https://surahquran.com/Radio-Quran-Cairo.html",
-  },
-  {
-    id: "saudi",
-    name: "Quran Radio Saudi Arabia",
-    nameAr: "إذاعة القرآن الكريم من السعودية",
-    url: "https://stream.radiojar.com/4wqre23fytzuv",
-    sourceUrl: "https://surahquran.com/Radio-Quran-Saudi.html",
-  },
-  {
-    id: "usa",
-    name: "Quran Radio USA — Tarateel",
-    nameAr: "إذاعة القرآن الكريم USA — ترتيل",
-    url: "https://qurango.net/radio/tarateel",
-    sourceUrl: "https://surahquran.com/Radio-Quran-USA.html",
-  },
-];
-
 function cacheKey(id: AdhanVoiceId, variant: AdhanVariant): string {
   return `${id}:${variant}`;
 }
@@ -100,39 +64,89 @@ function getCache(storage: MuslimCordStorage): Record<string, string> {
   return storage.audioCache;
 }
 
-let activeNativePlayer: any;
-let activeWebPlayer: any;
-let activeStreamManager: any;
-let activeStreamKey: number | undefined;
-let streamKeyCounter = 500000;
+type NativeFileManager = {
+  writeFile?: (storageDir: "cache" | "documents", path: string, data: string, encoding: "base64" | "utf8") => Promise<string>;
+  getConstants?: () => { CacheDirPath?: string; DocumentsDirPath?: string };
+};
 
-function getNativeModules(): any | undefined {
+function getNativeFileManager(): NativeFileManager | undefined {
   try {
-    return (globalThis as any).ReactNative?.NativeModules || (globalThis as any).window?.ReactNative?.NativeModules;
-  } catch {
-    return undefined;
+    const root = globalThis as any;
+    const proxy = root.nativeModuleProxy || root.window?.nativeModuleProxy;
+    for (const name of ["NativeFileModule", "RTNFileManager", "DCDFileManager"]) {
+      const module = root.__turboModuleProxy?.(name) || proxy?.[name];
+      if (module?.writeFile && module?.getConstants) return module as NativeFileManager;
+    }
+  } catch { /* unsupported client */ }
+  return undefined;
+}
+
+function isSafeLocalAudioUri(value: unknown): value is string {
+  return typeof value === "string" && /^(?:file|content):\/\//i.test(value);
+}
+
+function localFileUri(writtenPath: unknown, manager: NativeFileManager, relativePath: string): string | undefined {
+  const returned = typeof writtenPath === "string" ? writtenPath : "";
+  if (/^(?:file|content):\/\//i.test(returned)) return returned;
+  if (returned.startsWith("/")) return `file://${returned}`;
+  const documentsDir = manager.getConstants?.().DocumentsDirPath;
+  if (documentsDir) return `file://${documentsDir.replace(/\/$/, "")}/${returned || relativePath}`;
+  return undefined;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const FileReaderCtor = (globalThis as any).FileReader;
+  if (!FileReaderCtor) throw new Error("Local audio storage is unavailable in this client");
+  const dataUri = await new Promise<string | null>((resolve) => {
+    try {
+      const reader = new FileReaderCtor();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    } catch { resolve(null); }
+  });
+  const comma = dataUri?.indexOf(",") ?? -1;
+  if (!dataUri || comma < 0) throw new Error("Could not encode a local audio copy");
+  const base64 = dataUri.slice(comma + 1);
+  if (!base64) throw new Error("Could not encode a local audio copy");
+  return base64;
+}
+
+async function writeLocalAudio(storage: MuslimCordStorage, key: string, blob: Blob): Promise<string> {
+  const manager = getNativeFileManager();
+  if (!manager?.writeFile) throw new Error("This client does not expose a safe local audio file manager");
+  const safeName = key.replace(/[^a-z0-9_-]+/gi, "_");
+  const extension = blob.type.includes("mp4") ? "mp4" : "mp3";
+  const relativePath = `muslimcord/adhan/${safeName}.${extension}`;
+  const base64 = await blobToBase64(blob);
+  const writtenPath = await manager.writeFile("documents", relativePath, base64, "base64");
+  const uri = localFileUri(writtenPath, manager, relativePath);
+  if (!uri || !isSafeLocalAudioUri(uri)) throw new Error("The local audio file path is unsupported");
+  getCache(storage)[key] = uri;
+  return uri;
+}
+
+export function sanitizeAudioCache(storage: MuslimCordStorage): void {
+  const cache = getCache(storage);
+  for (const key of Object.keys(cache)) {
+    if (!isSafeLocalAudioUri(cache[key])) {
+      delete cache[key];
+      if (storage.audioDownloadState) storage.audioDownloadState[key] = "not-downloaded";
+    }
   }
 }
+
+let activeNativePlayer: any;
+let activeWebPlayer: any;
 
 function stopNativeAudio(): void {
   try { activeNativePlayer?.stop?.(); } catch { /* ignored */ }
   activeNativePlayer = undefined;
-  if (activeStreamManager && activeStreamKey !== undefined) {
-    try { activeStreamManager.stop?.(activeStreamKey); } catch { /* ignored */ }
-    try { activeStreamManager.release?.(activeStreamKey); } catch { /* ignored */ }
-  }
-  activeStreamManager = undefined;
-  activeStreamKey = undefined;
 }
 
 function stopWebAudio(): void {
   try { activeWebPlayer?.pause?.(); activeWebPlayer?.removeAttribute?.("src"); activeWebPlayer?.load?.(); } catch { /* ignored */ }
   activeWebPlayer = undefined;
-}
-
-export function stopQuranFm(): void {
-  stopNativeAudio();
-  stopWebAudio();
 }
 
 function getNativeAudioSound(): any | undefined {
@@ -144,6 +158,7 @@ function getNativeAudioSound(): any | undefined {
 }
 
 function playNativeAudio(url: string, onFailure?: () => void): boolean {
+  if (!/^https?:\/\//i.test(url) && !isSafeLocalAudioUri(url)) return false;
   const MobileAudioSound = getNativeAudioSound();
   if (!MobileAudioSound) return false;
   try {
@@ -157,45 +172,6 @@ function playNativeAudio(url: string, onFailure?: () => void): boolean {
     onFailure?.();
     return false;
   }
-}
-
-function playNativeStream(url: string): Promise<boolean> {
-  const manager = getNativeModules()?.DCDSoundManager;
-  if (!manager?.prepare || !manager?.play) return Promise.resolve(false);
-  stopNativeAudio();
-  const key = ++streamKeyCounter;
-  activeStreamManager = manager;
-  activeStreamKey = key;
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (success: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (!success && activeStreamKey === key) {
-        try { manager.release?.(key); } catch { /* ignored */ }
-        activeStreamManager = undefined;
-        activeStreamKey = undefined;
-      }
-      resolve(success);
-    };
-    try {
-      manager.prepare(url, "media", key, (error: unknown) => {
-        if (error !== null && error !== undefined && error !== "") {
-          finish(false);
-          return;
-        }
-        try {
-          manager.play(key);
-          finish(true);
-        } catch {
-          finish(false);
-        }
-      });
-      setTimeout(() => finish(false), 8000);
-    } catch {
-      finish(false);
-    }
-  });
 }
 
 function playTone(frequency = 880, duration = 180): void {
@@ -218,6 +194,7 @@ function playTone(frequency = 880, duration = 180): void {
 }
 
 function playWebAudio(url: string, mime: string, onFailure?: () => void): boolean {
+  if (!/^https?:\/\//i.test(url) && !isSafeLocalAudioUri(url)) return false;
   try {
     const AudioCtor = (globalThis as any).Audio;
     if (!AudioCtor) return false;
@@ -265,7 +242,10 @@ export function getVoiceVariant(voice: AudioVoice, variant: AdhanVariant): { url
 }
 
 export function getAudioState(storage: MuslimCordStorage, id: string): AudioDownloadState {
-  return storage.audioDownloadState?.[id] || (storage.audioCache?.[id] ? "downloaded" : "not-downloaded");
+  const cached = storage.audioCache?.[id];
+  return storage.audioDownloadState?.[id] === "downloaded" && isSafeLocalAudioUri(cached)
+    ? "downloaded"
+    : "not-downloaded";
 }
 
 export function getAudioProgress(storage: MuslimCordStorage, id: string): AudioProgress | undefined {
@@ -304,22 +284,13 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
       loaded = blob.size;
       storage.audioDownloadProgress[target.key] = { loaded, total: total || loaded, percent: 100 };
     }
-    const FileReaderCtor = (globalThis as any).FileReader;
-    if (!FileReaderCtor) throw new Error("Local audio storage is unavailable in this client");
-    const dataUri = await new Promise<string | null>((resolve) => {
-      try {
-        const reader = new FileReaderCtor();
-        reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      } catch { resolve(null); }
-    });
-    if (!dataUri) throw new Error("Could not create a local audio copy");
-    getCache(storage)[target.key] = dataUri;
+    delete getCache(storage)[target.key];
+    await writeLocalAudio(storage, target.key, blob);
     storage.audioDownloadProgress[target.key] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100 };
     storage.audioDownloadState[target.key] = "downloaded";
     return true;
   } catch (error) {
+    delete getCache(storage)[target.key];
     storage.audioDownloadState[target.key] = "failed";
     storage.audioDownloadError[target.key] = String(error);
     return false;
@@ -351,32 +322,17 @@ export function playReminderSound(storage: MuslimCordStorage, mode: SoundMode, v
   const voice = getVoice(voiceId || "ali-ahmed-mullah");
   const target = getVoiceVariant(voice, variant);
   const cached = getCache(storage)[target.key];
-  playSource(target.url, target.mime, cached && cached !== target.url ? cached : undefined, onFailure);
+  playSource(target.url, target.mime, isSafeLocalAudioUri(cached) && cached !== target.url ? cached : undefined, onFailure);
 }
 
 export function playDownloadedAdhan(storage: MuslimCordStorage, voiceId: AdhanVoiceId, variant: AdhanVariant, onMissing?: () => void, onFailure?: () => void): boolean {
   const voice = getVoice(voiceId);
   const target = getVoiceVariant(voice, variant);
   const cached = getCache(storage)[target.key];
-  const isLocal = Boolean(cached && cached !== target.url && !/^https?:\/\//i.test(cached));
-  if (!isLocal) {
+  if (!isSafeLocalAudioUri(cached) || cached === target.url) {
     onMissing?.();
     return false;
   }
   playSource(cached, target.mime, undefined, onFailure);
   return true;
-}
-
-export async function playQuranFm(stationId: QuranFmStationId, onFailure?: () => void): Promise<QuranFmPlaybackResult> {
-  const station = QURAN_FM_STATIONS.find((item) => item.id === stationId) || QURAN_FM_STATIONS[0];
-  stopQuranFm();
-  if (await playNativeStream(station.url)) return "native";
-  if (playWebAudio(station.url, "audio/mpeg", onFailure)) return "web";
-  try {
-    vendettaUrl.openURL(station.url);
-    return "external";
-  } catch {
-    onFailure?.();
-    return "failed";
-  }
 }
