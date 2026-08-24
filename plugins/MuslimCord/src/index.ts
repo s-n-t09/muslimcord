@@ -5,7 +5,7 @@ import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./Settings";
 import { getLanguage, translations, type Language } from "./i18n";
 import { fetchPrayerTimes, formatPrayerName, nextPrayer, resolveLocation, type Coordinates, type PrayerData, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playDownloadedAdhan, playReminderSound, sanitizeAudioCache, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type SoundMode } from "./sound";
+import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playDownloadedAdhan, playReminderSound, sanitizeAudioCache, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type AudioVoice, type SoundMode } from "./sound";
 
 export type IntervalPreset = "30m" | "1h" | "2h" | "3h" | "custom";
 
@@ -73,6 +73,21 @@ let scheduler: ReturnType<typeof setTimeout> | undefined;
 let refreshing = false;
 let duaIndex = 0;
 let salawatIndex = 0;
+let activeAudioDownload: AudioDownloadSession | undefined;
+let audioDownloadController: AbortController | undefined;
+const audioDownloadListeners = new Set<() => void>();
+let lastAudioProgressNotification = 0;
+
+export type AudioDownloadSession = {
+  mode: "selected" | "all";
+  active: boolean;
+  completed: number;
+  total: number;
+  voice?: AudioVoice;
+  variant?: AdhanVariant;
+  progress?: AudioProgress;
+  result?: "completed" | "failed" | "cancelled";
+};
 
 function initializeStorage(): void {
   for (const [key, value] of Object.entries(DEFAULTS)) {
@@ -282,17 +297,102 @@ export function testFajrAdhan(): void {
   if (started) showToast(t().fajrAdhanStarted);
 }
 
+function notifyAudioDownloadListeners(force = false): void {
+  const now = Date.now();
+  if (!force && now - lastAudioProgressNotification < 250) return;
+  lastAudioProgressNotification = now;
+  audioDownloadListeners.forEach((listener) => listener());
+}
+
+export function getAudioDownloadSession(): AudioDownloadSession | undefined {
+  return activeAudioDownload;
+}
+
+export function subscribeAudioDownload(listener: () => void): () => void {
+  audioDownloadListeners.add(listener);
+  return () => audioDownloadListeners.delete(listener);
+}
+
+export function cancelAudioDownload(): void {
+  audioDownloadController?.abort();
+}
+
+export function dismissAudioDownload(): void {
+  if (!activeAudioDownload?.active) {
+    activeAudioDownload = undefined;
+    notifyAudioDownloadListeners(true);
+  }
+}
+
+function finishAudioDownload(result: "completed" | "failed" | "cancelled"): void {
+  if (!activeAudioDownload) return;
+  activeAudioDownload.active = false;
+  activeAudioDownload.result = result;
+  audioDownloadController = undefined;
+  notifyAudioDownloadListeners(true);
+}
+
 export async function downloadSelectedAudio(): Promise<void> {
+  if (activeAudioDownload?.active) return;
   const voice = AUDIO_VOICES.find((item) => item.id === vstorage.adhanVoice) || AUDIO_VOICES[0];
-  const normal = await downloadVoice(vstorage, voice, "normal");
-  const fajr = await downloadVoice(vstorage, voice, "fajr");
-  showToast(normal && fajr ? t().audioDownloaded : t().audioDownloadFailed);
+  const AbortControllerCtor = (globalThis as any).AbortController as typeof AbortController | undefined;
+  const controller = AbortControllerCtor ? new AbortControllerCtor() : undefined;
+  audioDownloadController = controller;
+  activeAudioDownload = { mode: "selected", active: true, completed: 0, total: 2, voice };
+  notifyAudioDownloadListeners(true);
+  let completed = 0;
+  try {
+    for (const variant of ["normal", "fajr"] as const) {
+      if (controller?.signal.aborted) break;
+      activeAudioDownload.voice = voice;
+      activeAudioDownload.variant = variant;
+      const success = await downloadVoice(vstorage, voice, variant, controller?.signal, (progress) => {
+        if (activeAudioDownload) activeAudioDownload.progress = progress;
+        notifyAudioDownloadListeners();
+      });
+      if (success) completed += 1;
+      activeAudioDownload.completed = completed;
+      notifyAudioDownloadListeners(true);
+    }
+    finishAudioDownload(controller?.signal.aborted ? "cancelled" : completed === 2 ? "completed" : "failed");
+  } catch {
+    finishAudioDownload(controller?.signal.aborted ? "cancelled" : "failed");
+  }
+  if (activeAudioDownload?.result === "completed") showToast(t().audioDownloaded);
+  else if (activeAudioDownload?.result === "cancelled") showToast(t().downloadCancelled);
+  else showToast(t().audioDownloadFailed);
 }
 
 export async function downloadAllAudio(): Promise<void> {
+  if (activeAudioDownload?.active) return;
   showToast(t().downloadStarted);
-  const completed = await downloadAllVoices(vstorage);
-  showToast(`${t().audioDownloaded}: ${completed}/${AUDIO_VOICES.length * 2}`);
+  const AbortControllerCtor = (globalThis as any).AbortController as typeof AbortController | undefined;
+  const controller = AbortControllerCtor ? new AbortControllerCtor() : undefined;
+  audioDownloadController = controller;
+  activeAudioDownload = { mode: "all", active: true, completed: 0, total: AUDIO_VOICES.length * 2 };
+  notifyAudioDownloadListeners(true);
+  let completed = 0;
+  try {
+    completed = await downloadAllVoices(
+      vstorage,
+      controller.signal,
+      (voice, variant, done, total) => {
+        if (activeAudioDownload) Object.assign(activeAudioDownload, { voice, variant, completed: done, total });
+        notifyAudioDownloadListeners(true);
+      },
+      (voice, variant, progress) => {
+        if (activeAudioDownload) Object.assign(activeAudioDownload, { voice, variant, progress });
+        notifyAudioDownloadListeners();
+      },
+    );
+    if (activeAudioDownload) activeAudioDownload.completed = completed;
+    finishAudioDownload(controller?.signal.aborted ? "cancelled" : completed === AUDIO_VOICES.length * 2 ? "completed" : "failed");
+  } catch {
+    finishAudioDownload(controller?.signal.aborted ? "cancelled" : "failed");
+  }
+  if (activeAudioDownload?.result === "completed") showToast(`${t().audioDownloaded}: ${completed}/${AUDIO_VOICES.length * 2}`);
+  else if (activeAudioDownload?.result === "cancelled") showToast(t().downloadCancelled);
+  else showToast(t().audioDownloadFailed);
 }
 
 export function clearDownloadedAudio(): void {
@@ -322,6 +422,9 @@ export function onLoad(): void {
 export function onUnload(): void {
   if (scheduler) clearTimeout(scheduler);
   scheduler = undefined;
+  audioDownloadController?.abort();
+  audioDownloadController = undefined;
+  activeAudioDownload = undefined;
   logger.log("MuslimCord unloaded");
 }
 

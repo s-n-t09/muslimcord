@@ -86,6 +86,11 @@ global.FileReader = class MockFileReader {
     this.onloadend?.();
   }
 };
+const progressSnapshots = [];
+const unsubscribeProgress = raw.subscribeAudioDownload(() => {
+  const session = raw.getAudioDownloadSession();
+  if (session) progressSnapshots.push({ active: session.active, completed: session.completed, percent: session.progress?.percent, speed: session.progress?.speedBytesPerSecond });
+});
 global.fetch = async () => {
   const bytes = new Uint8Array([65, 66, 67]);
   let consumed = false;
@@ -96,11 +101,15 @@ global.fetch = async () => {
   };
 };
 await raw.downloadSelectedAudio();
+unsubscribeProgress();
 if (writes.length !== 2 || writes.some(({ storageDir, encoding, data }) => storageDir !== "documents" || encoding !== "base64" || data.startsWith("data:"))) {
   throw new Error(`Native local-file download contract failed: ${JSON.stringify(writes)}`);
 }
 if (!Object.values(vendetta.plugin.storage.audioCache).every((value) => value.startsWith("file://"))) {
   throw new Error(`Download did not store file URIs: ${JSON.stringify(vendetta.plugin.storage.audioCache)}`);
+}
+if (!progressSnapshots.some(({ active, percent }) => active && percent !== undefined) || !progressSnapshots.some(({ active }) => active === false)) {
+  throw new Error(`Download progress session did not update correctly: ${JSON.stringify(progressSnapshots)}`);
 }
 
 vendetta.plugin.storage.audioCache = {
@@ -109,10 +118,23 @@ vendetta.plugin.storage.audioCache = {
 vendetta.plugin.storage.audioDownloadState = { "ali-ahmed-mullah:normal": "downloaded" };
 raw.testAdhan();
 await new Promise((resolve) => setTimeout(resolve, 25));
+
+global.fetch = async () => ({
+  ok: true,
+  headers: { get: () => "100" },
+  body: { getReader: () => ({ read: () => new Promise((resolve) => setTimeout(() => resolve({ done: false, value: new Uint8Array([1]) }), 50)) }) },
+});
+const cancellation = raw.downloadAllAudio();
+await new Promise((resolve) => setTimeout(resolve, 10));
+raw.cancelAudioDownload();
+await cancellation;
+if (raw.getAudioDownloadSession()?.result !== "cancelled") {
+  throw new Error(`Download cancellation failed: ${JSON.stringify(raw.getAudioDownloadSession())}`);
+}
 plugin.onUnload();
 
 if (nativePlayCount !== 1 || !nativeUrls[0].startsWith("file://") || nativeKeys[0] !== "vibing_wumpus" || nativeChannels[0] !== "default") {
   throw new Error(`Safe local audio contract failed: ${JSON.stringify({ nativePlayCount, nativeUrls, nativeKeys, nativeChannels })}`);
 }
 
-console.log(JSON.stringify({ removedRadioExports: "absent", missingCacheNativeCalls: 0, dataUriNativeCalls: 0, localFileNativeCalls: nativePlayCount, nativeFileWrites: writes.length, localUrl: nativeUrls[0] }));
+console.log(JSON.stringify({ removedRadioExports: "absent", missingCacheNativeCalls: 0, dataUriNativeCalls: 0, localFileNativeCalls: nativePlayCount, nativeFileWrites: writes.length, progressSnapshots: progressSnapshots.length, cancellation: "passed", localUrl: nativeUrls[0] }));

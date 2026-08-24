@@ -5,7 +5,7 @@ export type SoundMode = "simple" | "adhan";
 export type AdhanVoiceId = "ali-ahmed-mullah" | "mishary-alafasy" | "doha-qatar";
 export type AdhanVariant = "normal" | "fajr";
 export type AudioDownloadState = "not-downloaded" | "downloading" | "downloaded" | "failed";
-export type AudioProgress = { loaded: number; total: number; percent: number };
+export type AudioProgress = { loaded: number; total: number; percent: number; speedBytesPerSecond: number; etaSeconds?: number };
 
 export type AudioVoice = {
   id: AdhanVoiceId;
@@ -252,19 +252,36 @@ export function getAudioProgress(storage: MuslimCordStorage, id: string): AudioP
   return storage.audioDownloadProgress?.[id];
 }
 
-export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoice, variant: AdhanVariant): Promise<boolean> {
+export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoice, variant: AdhanVariant, signal?: AbortSignal, onProgress?: (progress: AudioProgress) => void): Promise<boolean> {
   const target = getVoiceVariant(voice, variant);
   storage.audioDownloadState ??= {};
   storage.audioDownloadProgress ??= {};
   storage.audioDownloadError ??= {};
   storage.audioDownloadState[target.key] = "downloading";
-  storage.audioDownloadProgress[target.key] = { loaded: 0, total: 0, percent: 0 };
+  const initialProgress: AudioProgress = { loaded: 0, total: 0, percent: 0, speedBytesPerSecond: 0 };
+  storage.audioDownloadProgress[target.key] = initialProgress;
+  onProgress?.(initialProgress);
   delete storage.audioDownloadError[target.key];
   try {
-    const response = await fetch(target.url, { cache: "force-cache" });
+    const response = await fetch(target.url, { cache: "force-cache", signal });
     if (!response.ok) throw new Error(`Audio download failed: ${response.status}`);
     const total = Number(response.headers.get("content-length") || 0);
+    const startedAt = Date.now();
     let loaded = 0;
+    const updateProgress = (value: number, totalBytes = total) => {
+      const elapsedSeconds = Math.max(0.001, (Date.now() - startedAt) / 1000);
+      const speedBytesPerSecond = Math.round(value / elapsedSeconds);
+      const etaSeconds = totalBytes > value && speedBytesPerSecond > 0 ? Math.ceil((totalBytes - value) / speedBytesPerSecond) : undefined;
+      const progress: AudioProgress = {
+        loaded: value,
+        total: totalBytes,
+        percent: totalBytes ? Math.min(100, Math.round((value / totalBytes) * 100)) : 0,
+        speedBytesPerSecond,
+        etaSeconds,
+      };
+      storage.audioDownloadProgress![target.key] = progress;
+      onProgress?.(progress);
+    };
     let blob: Blob;
     if (response.body?.getReader) {
       const reader = response.body.getReader();
@@ -272,21 +289,23 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
       while (true) {
         const item = await reader.read();
         if (item.done) break;
+        if (signal?.aborted) throw new Error("Audio download cancelled");
         if (item.value) {
           chunks.push(item.value);
           loaded += item.value.byteLength;
-          storage.audioDownloadProgress[target.key] = { loaded, total, percent: total ? Math.min(100, Math.round((loaded / total) * 100)) : 0 };
+          updateProgress(loaded);
         }
       }
       blob = new Blob(chunks as unknown as BlobPart[], { type: target.mime });
     } else {
       blob = await response.blob();
       loaded = blob.size;
-      storage.audioDownloadProgress[target.key] = { loaded, total: total || loaded, percent: 100 };
+      updateProgress(loaded, total || loaded);
     }
     delete getCache(storage)[target.key];
     await writeLocalAudio(storage, target.key, blob);
-    storage.audioDownloadProgress[target.key] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100 };
+    updateProgress(loaded || blob.size, total || blob.size);
+    storage.audioDownloadProgress[target.key] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100, speedBytesPerSecond: storage.audioDownloadProgress[target.key]?.speedBytesPerSecond || 0 };
     storage.audioDownloadState[target.key] = "downloaded";
     return true;
   } catch (error) {
@@ -297,11 +316,14 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
   }
 }
 
-export async function downloadAllVoices(storage: MuslimCordStorage): Promise<number> {
+export async function downloadAllVoices(storage: MuslimCordStorage, signal?: AbortSignal, onItem?: (voice: AudioVoice, variant: AdhanVariant, completed: number, total: number) => void, onProgress?: (voice: AudioVoice, variant: AdhanVariant, progress: AudioProgress) => void): Promise<number> {
   let completed = 0;
+  const total = AUDIO_VOICES.length * 2;
   for (const voice of AUDIO_VOICES) {
     for (const variant of ["normal", "fajr"] as const) {
-      if (await downloadVoice(storage, voice, variant)) completed += 1;
+      if (signal?.aborted) return completed;
+      onItem?.(voice, variant, completed, total);
+      if (await downloadVoice(storage, voice, variant, signal, (progress) => onProgress?.(voice, variant, progress))) completed += 1;
     }
   }
   return completed;

@@ -29,12 +29,12 @@ https://s-n-t09.github.io/muslimcord/
 | تذكير الدعاء | 30 دقيقة، ساعة، ساعتان، ثلاث ساعات، أو مدة مخصصة، مع مؤقت مرئي | 30 دقيقة |
 | تذكير الصلاة على النبي محمد ﷺ | الفواصل نفسها، مع تأخير ثلاث دقائق بعد تذكير الدعاء | ساعة |
 | الصوت | صوت إشعار بسيط للتذكيرات، أو أذان لأوقات الصلاة فقط | صوت إشعار بسيط |
-| تنزيل الأصوات | تنزيل صوت محدد أو جميع الأصوات يدوياً وتخزينها محلياً عند دعم العميل | غير منزّل |
+| تنزيل الأصوات | تنزيل صوت محدد أو جميع الأصوات يدوياً مع نافذة تعرض الشريط والنسبة والحجم والسرعة والوقت التقريبي المتبقي، وإمكانية الإلغاء | غير منزّل |
 | اللغة | العربية أو English | تُستنتج من لغة العميل |
 
 يعمل Plugin في الخلفية أثناء تفعيله باستخدام مؤقتات متباعدة بدلاً من حلقة تعمل كل ثانية؛ يستيقظ عند موعد التذكير أو بداية الدقيقة أو موعد تحديث أوقات الصلاة، مما يقلل العمل المستمر على Discord. وتُحدّث عدّادات صفحة الإعدادات كل خمس ثوانٍ فقط أثناء فتحها. زر **تفعيل التذكيرات** هو المفتاح الموحّد لإيقاف نوافذ الدعاء والصلاة على النبي وتنبيهات الصلاة معاً. تُحفظ الإعدادات في مساحة التخزين الخاصة بالعميل، ويستمر التذكير وفق اختياراتك بعد إعادة فتح Discord.
 
-تتيح صفحة الإعدادات كتابة الموقع في حقل نصي ثم الضغط على **حفظ الموقع وتحديث الأوقات**. يوجد رابط OpenStreetMap موثوق يمكن فتحه للبحث عن المنطقة ونسخ اسم المكان أو العنوان ولصقه في الحقل. كما تتضمن أزراراً لاختبار الأذان العادي وأذان الفجر والدعاء والصلاة على النبي محمد ﷺ. اختبار الأذان لا يستخدم الرابط البعيد ولا يعيد تنزيل الملف؛ بل يفشل مباشرة برسالة واضحة إذا لم تكن النسخة المختارة مخزنة محلياً. يعرض التنزيل حالة البدء والنسبة والحجم المنقول وحالة النجاح أو الفشل، ويمكن تنزيل صوت الأذان المحدد أو جميع الأصوات يدوياً.
+تتيح صفحة الإعدادات كتابة الموقع في حقل نصي ثم الضغط على **حفظ الموقع وتحديث الأوقات**. يوجد رابط OpenStreetMap موثوق يمكن فتحه للبحث عن المنطقة ونسخ اسم المكان أو العنوان ولصقه في الحقل. كما تتضمن أزراراً لاختبار الأذان العادي وأذان الفجر والدعاء والصلاة على النبي محمد ﷺ. اختبار الأذان لا يستخدم الرابط البعيد ولا يعيد تنزيل الملف؛ بل يفشل مباشرة برسالة واضحة إذا لم تكن النسخة المختارة مخزنة محلياً. يعرض التنزيل نافذة تقدم مستقلة تتضمن الملف الجاري، التقدم الحالي والإجمالي، الحجم المنقول، سرعة التنزيل، والوقت التقريبي المتبقي. ويمكن إلغاء التنزيل من النافذة، ثم إعادة المحاولة لاحقاً دون حظر واجهة Discord. بعد اكتمال التنزيل تظهر النتيجة ويمكن إغلاق النافذة.
 
 تتضمن قائمة الأذان الحالية أصواتاً مكتملة فقط؛ لكل صوت نسخة مستقلة للأذان العادي ونسخة مستقلة لأذان الفجر. الأصوات المتاحة هي الشيخ علي أحمد ملا، الشيخ مشاري راشد العفاسي، وتسجيل الدوحة العام. إذا لم تتوفر النسختان لصوت ما فلا يظهر في القائمة، ويُرحّل الاختيار القديم تلقائياً إلى أول صوت مكتمل. يكتب التنزيل الملف عبر FileManager محلي مدعوم في Kettu ويحفظ URI من نوع `file://` أو `content://` فقط؛ إذا لم يتوفر هذا المسار يفشل التنزيل والاختبار برسالة واضحة بدلاً من تمرير data URI إلى مشغل Discord.
 
@@ -93,10 +93,10 @@ https://s-n-t09.github.io/muslimcord/
 | Du'a reminders | 30 minutes, 1 hour, 2 hours, 3 hours, or a custom interval, with a visible countdown | 30 minutes |
 | Salawat reminders | The same interval choices, delayed by three minutes after a du'a reminder | 1 hour |
 | Sound | Simple notification sound for reminders, or full adhan for prayer times only | Simple notification sound |
-| Audio downloads | Download the selected adhan voice or all voices manually for local reuse | Not downloaded |
+| Audio downloads | Download the selected adhan voice or all voices manually; a progress modal shows percentage, transferred size, speed, estimated remaining time, and cancellation | Not downloaded |
 | Language | Arabic or English | Client locale |
 
-When enabled, the plugin uses scheduled timeouts instead of a one-second background loop: it wakes at reminder deadlines, minute boundaries, and the daily refresh deadline. The settings screen refreshes visible countdowns every five seconds only while it is open. A single **Enable reminders** switch controls all reminder pop-ups. Settings are stored in the client plugin storage and remain available after restarting Discord. The settings screen includes test buttons for the regular adhan, Fajr adhan, du'a, and blessings upon Prophet Muhammad ﷺ. Adhan tests use only the locally stored file and fail immediately when the selected variant has not been downloaded or when the client does not expose a supported local-file API. Audio downloads display preparation, percentage, transferred size, success, and failure states.
+When enabled, the plugin uses scheduled timeouts instead of a one-second background loop: it wakes at reminder deadlines, minute boundaries, and the daily refresh deadline. The settings screen refreshes visible countdowns every five seconds only while it is open. A single **Enable reminders** switch controls all reminder pop-ups. Settings are stored in the client plugin storage and remain available after restarting Discord. The settings screen includes test buttons for the regular adhan, Fajr adhan, du'a, and blessings upon Prophet Muhammad ﷺ. Adhan tests use only the locally stored file and fail immediately when the selected variant has not been downloaded or when the client does not expose a supported local-file API. Audio downloads display a dedicated progress modal with the current file, item and overall percentage, transferred size, live speed, estimated remaining time, and a cancel action. After completion, the result remains visible until the user closes the modal.
 
 ## Data and audio sources
 
@@ -104,7 +104,8 @@ Prayer times use the [AlAdhan Prayer Times API](https://aladhan.com/prayer-times
 
 ## Compatibility and development
 
-The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, then the workflow copies both files to the GitHub Pages root so the root installation URL works directly. Settings include a saved text location field with an OpenStreetMap helper link, one unified reminder switch, visible countdowns, independent adhan/du'a/salawat test actions, manual audio downloads with progress, and selectable paired adhan voices. `@vendetta/*` modules remain external and are resolved by the client at runtime.
+The project follows the official Vendetta plugin layout: each plugin has a `manifest.json` and a main source file, and the build emits `index.js` and `manifest.json` under `dist/MuslimCord/`, then the workflow copies both files to the GitHub Pages root so the root installation URL works directly. Settings include a saved text location field with an OpenStreetMap helper link, one unified reminder switch, visible countdowns, independent adhan/du'a/salawat test actions, manual audio downloads with a cancellable progress modal, selectable paired adhan voices.
+`@vendetta/*` modules remain external and are resolved by the client at runtime.
 
 To build locally, install Node.js and pnpm, then run:
 

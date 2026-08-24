@@ -1,7 +1,7 @@
 import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
-import { getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, testAdhan, testDuaa, testFajrAdhan, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type IntervalPreset } from ".";
+import { cancelAudioDownload, dismissAudioDownload, getAudioDownloadSession, getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, subscribeAudioDownload, testAdhan, testDuaa, testFajrAdhan, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type AudioDownloadSession, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
 import { AUDIO_VOICES, type AdhanVoiceId, type SoundMode } from "./sound";
 
@@ -28,6 +28,21 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatDuration(seconds: number | undefined): string {
+  if (seconds === undefined || !Number.isFinite(seconds)) return "—";
+  const value = Math.max(0, Math.ceil(seconds));
+  if (value < 60) return `${value}s`;
+  const minutes = Math.floor(value / 60);
+  const remainingSeconds = value % 60;
+  if (minutes < 60) return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+function formatSpeed(bytesPerSecond: number | undefined): string {
+  if (!bytesPerSecond || !Number.isFinite(bytesPerSecond)) return "—";
+  return `${formatBytes(bytesPerSecond)}/s`;
+}
+
 function downloadLabel(state: string, progress: ReturnType<typeof getAudioProgress>, localized: ReturnType<typeof t>): string {
   if (state === "downloading") {
     const percent = progress?.percent ? `${progress.percent}%` : localized.downloadPreparing;
@@ -51,6 +66,41 @@ function IntervalRows({ value, onChange, isArabic }: { value: IntervalPreset; on
 
 function ActionRow({ label, onPress, subLabel }: { label: string; onPress: () => void; subLabel?: string }) {
   return <FormRow label={label} subLabel={subLabel} onPress={onPress} trailing={<FormRow.Arrow />} style={{ marginHorizontal: 12 }} />;
+}
+
+function DownloadProgressModal({ session, isArabic }: { session?: AudioDownloadSession; isArabic: boolean }) {
+  if (!session) return null;
+  const localized = t();
+  const progress = session.progress;
+  const itemPercent = Math.max(0, Math.min(100, progress?.percent || 0));
+  const overallPercent = session.total > 0
+    ? Math.max(0, Math.min(100, Math.round(((session.completed + (session.active ? itemPercent / 100 : 0)) / session.total) * 100)))
+    : 0;
+  const voiceName = session.voice ? (isArabic ? session.voice.nameAr : session.voice.name) : localized.downloadPreparing;
+  const variantName = session.variant === "fajr" ? localized.fajrAdhan : session.variant === "normal" ? localized.normalAdhan : "";
+  const status = session.active
+    ? `${localized.downloading} ${itemPercent}%`
+    : session.result === "completed" ? localized.downloadComplete : session.result === "cancelled" ? localized.downloadCancelled : localized.audioDownloadFailed;
+  const closeOrCancel = () => session.active ? cancelAudioDownload() : dismissAudioDownload();
+  return (
+    <RN.Modal visible animationType="fade" transparent onRequestClose={closeOrCancel}>
+      <RN.View style={{ flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.72)" }}>
+        <RN.View style={{ borderRadius: 16, padding: 20, backgroundColor: "#112032" }}>
+          <RN.Text style={{ color: "#f8fafc", fontSize: 20, fontWeight: "700", textAlign: isArabic ? "right" : "left" }}>{localized.downloadProgress}</RN.Text>
+          <RN.Text style={{ marginTop: 14, color: "#cbd5e1", textAlign: isArabic ? "right" : "left" }}>{localized.downloadFile}: {voiceName}{variantName ? ` · ${variantName}` : ""}</RN.Text>
+          <RN.Text style={{ marginTop: 8, color: "#cbd5e1", textAlign: isArabic ? "right" : "left" }}>{localized.downloadOverall}: {overallPercent}% · {session.completed}/{session.total}</RN.Text>
+          <RN.View style={{ height: 12, marginTop: 12, overflow: "hidden", borderRadius: 8, backgroundColor: "#24364b" }}>
+            <RN.View style={{ width: `${overallPercent}%`, height: "100%", borderRadius: 8, backgroundColor: "#34d399" }} />
+          </RN.View>
+          <RN.Text style={{ marginTop: 14, color: "#a7f3d0", textAlign: isArabic ? "right" : "left" }}>{status}</RN.Text>
+          <RN.Text style={{ marginTop: 6, color: "#cbd5e1", textAlign: isArabic ? "right" : "left" }}>{localized.downloadTransferred}: {formatBytes(progress?.loaded || 0)} / {progress?.total ? formatBytes(progress.total) : "—"}</RN.Text>
+          <RN.Text style={{ marginTop: 6, color: "#cbd5e1", textAlign: isArabic ? "right" : "left" }}>{localized.downloadSpeed}: {formatSpeed(progress?.speedBytesPerSecond)}</RN.Text>
+          <RN.Text style={{ marginTop: 6, color: "#cbd5e1", textAlign: isArabic ? "right" : "left" }}>{localized.downloadEta}: {formatDuration(progress?.etaSeconds)}</RN.Text>
+          <ActionRow label={session.active ? localized.downloadCancel : localized.downloadDismiss} onPress={closeOrCancel} />
+        </RN.View>
+      </RN.View>
+    </RN.Modal>
+  );
 }
 
 function LocationModal({ visible, isArabic, onClose }: { visible: boolean; isArabic: boolean; onClose: () => void }) {
@@ -88,6 +138,7 @@ export default function Settings() {
   const localized = t();
   const data = vstorage.prayerData;
   const [locationModalVisible, setLocationModalVisible] = React.useState(false);
+  const [audioDownload, setAudioDownload] = React.useState<AudioDownloadSession | undefined>(getAudioDownloadSession());
   const [, setNow] = React.useState(Date.now());
   const prayerNames: PrayerName[] = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
@@ -96,9 +147,18 @@ export default function Settings() {
     return () => clearInterval(timer);
   }, []);
 
+  React.useEffect(() => {
+    const updateDownload = () => {
+      const current = getAudioDownloadSession();
+      setAudioDownload(current ? { ...current, progress: current.progress ? { ...current.progress } : undefined } : undefined);
+    };
+    return subscribeAudioDownload(updateDownload);
+  }, []);
+
   return (
     <RN.ScrollView style={{ flex: 1 }}>
       <LocationModal visible={locationModalVisible} isArabic={isArabic} onClose={() => setLocationModalVisible(false)} />
+      <DownloadProgressModal session={audioDownload} isArabic={isArabic} />
       <FormText>{localized.aboutText}</FormText>
       <FormText>{localized.author}</FormText>
       <FormRow label={localized.language} />
