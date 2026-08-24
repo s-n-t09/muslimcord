@@ -1,22 +1,5 @@
 import { readFile } from "node:fs/promises";
 
-let nativePlayCount = 0;
-const nativeUrls = [];
-const nativeKeys = [];
-const nativeChannels = [];
-
-class MockMobileAudioSound {
-  constructor(url, soundKey, volume, outputChannel) {
-    nativeUrls.push(url);
-    nativeKeys.push(soundKey);
-    nativeChannels.push(outputChannel);
-  }
-
-  async play() {
-    nativePlayCount += 1;
-  }
-}
-
 global.window = {
   React: { createElement: (...args) => ({ args }), Fragment: "Fragment" },
   ReactNative: { ScrollView: "ScrollView" },
@@ -31,7 +14,7 @@ const vendetta = {
     components: { Forms: {} },
   },
   metro: {
-    findByProps: () => ({ MobileAudioSound: MockMobileAudioSound }),
+    findByProps: () => ({}),
     common: { React: window.React, ReactNative: window.ReactNative },
   },
   storage: {},
@@ -57,17 +40,11 @@ const removedSourceTerms = [
 if (removedSourceTerms.some((term) => js.includes(term))) {
   throw new Error("Removed live-radio implementation remains in the bundle");
 }
+if ("testAdhan" in raw || "testFajrAdhan" in raw || js.includes("Test regular adhan") || js.includes("Test Fajr adhan")) {
+  throw new Error("Adhan test actions are still exposed");
+}
 
 plugin.onLoad();
-
-raw.testAdhan();
-if (nativePlayCount !== 0) throw new Error("A missing local adhan unexpectedly invoked native playback");
-
-vendetta.plugin.storage.audioCache = {
-  "ali-ahmed-mullah:normal": "data:audio/mpeg;base64,SUQz",
-};
-raw.testAdhan();
-if (nativePlayCount !== 0) throw new Error("A data URI unexpectedly reached MobileAudioSound");
 
 const writes = [];
 window.nativeModuleProxy = {
@@ -91,15 +68,34 @@ const unsubscribeProgress = raw.subscribeAudioDownload(() => {
   const session = raw.getAudioDownloadSession();
   if (session) progressSnapshots.push({ active: session.active, completed: session.completed, percent: session.progress?.percent, speed: session.progress?.speedBytesPerSecond });
 });
-global.fetch = async () => {
-  const bytes = new Uint8Array([65, 66, 67]);
-  let consumed = false;
-  return {
-    ok: true,
-    headers: { get: () => String(bytes.length) },
-    body: { getReader: () => ({ read: async () => consumed ? { done: true } : ((consumed = true), { done: false, value: bytes }) }) },
-  };
-};
+class MockXMLHttpRequest {
+  status = 200;
+  response = undefined;
+  responseType = "";
+  aborted = false;
+  timer = undefined;
+  open() {}
+  send() {
+    let loaded = 0;
+    this.timer = setInterval(() => {
+      if (this.aborted) return;
+      loaded += 25;
+      this.onprogress?.({ loaded, total: 100 });
+      if (loaded >= 100) {
+        clearInterval(this.timer);
+        this.response = new Blob([new Uint8Array(100)], { type: "audio/mpeg" });
+        this.onload?.();
+      }
+    }, 100);
+  }
+  abort() {
+    if (this.aborted) return;
+    this.aborted = true;
+    if (this.timer) clearInterval(this.timer);
+    this.onabort?.();
+  }
+}
+global.XMLHttpRequest = MockXMLHttpRequest;
 await raw.downloadSelectedAudio();
 unsubscribeProgress();
 if (writes.length !== 2 || writes.some(({ storageDir, encoding, data }) => storageDir !== "documents" || encoding !== "base64" || data.startsWith("data:"))) {
@@ -108,16 +104,9 @@ if (writes.length !== 2 || writes.some(({ storageDir, encoding, data }) => stora
 if (!Object.values(vendetta.plugin.storage.audioCache).every((value) => value.startsWith("file://"))) {
   throw new Error(`Download did not store file URIs: ${JSON.stringify(vendetta.plugin.storage.audioCache)}`);
 }
-if (!progressSnapshots.some(({ active, percent }) => active && percent !== undefined) || !progressSnapshots.some(({ active }) => active === false)) {
-  throw new Error(`Download progress session did not update correctly: ${JSON.stringify(progressSnapshots)}`);
+if (progressSnapshots.filter(({ active, percent }) => active && percent > 0 && percent < 100).length < 2 || !progressSnapshots.some(({ active }) => active === false)) {
+  throw new Error(`Download progress session did not update in real time: ${JSON.stringify(progressSnapshots)}`);
 }
-
-vendetta.plugin.storage.audioCache = {
-  "ali-ahmed-mullah:normal": "file:///data/user/0/com.discord/files/muslimcord/adhan/ali-ahmed-mullah_normal.mp4",
-};
-vendetta.plugin.storage.audioDownloadState = { "ali-ahmed-mullah:normal": "downloaded" };
-raw.testAdhan();
-await new Promise((resolve) => setTimeout(resolve, 25));
 
 global.fetch = async () => ({
   ok: true,
@@ -133,8 +122,4 @@ if (raw.getAudioDownloadSession()?.result !== "cancelled") {
 }
 plugin.onUnload();
 
-if (nativePlayCount !== 1 || !nativeUrls[0].startsWith("file://") || nativeKeys[0] !== "vibing_wumpus" || nativeChannels[0] !== "default") {
-  throw new Error(`Safe local audio contract failed: ${JSON.stringify({ nativePlayCount, nativeUrls, nativeKeys, nativeChannels })}`);
-}
-
-console.log(JSON.stringify({ removedRadioExports: "absent", missingCacheNativeCalls: 0, dataUriNativeCalls: 0, localFileNativeCalls: nativePlayCount, nativeFileWrites: writes.length, progressSnapshots: progressSnapshots.length, cancellation: "passed", localUrl: nativeUrls[0] }));
+console.log(JSON.stringify({ removedRadioExports: "absent", adhanTestActions: "absent", nativeFileWrites: writes.length, progressSnapshots: progressSnapshots.length, cancellation: "passed" }));

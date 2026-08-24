@@ -5,7 +5,7 @@ import { showToast } from "@vendetta/ui/toasts";
 import Settings from "./Settings";
 import { getLanguage, translations, type Language } from "./i18n";
 import { fetchPrayerTimes, formatPrayerName, nextPrayer, resolveLocation, type Coordinates, type PrayerData, type PrayerName } from "./prayer";
-import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playDownloadedAdhan, playReminderSound, sanitizeAudioCache, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type AudioVoice, type SoundMode } from "./sound";
+import { AUDIO_VOICES, clearAudioCache, downloadAllVoices, downloadVoice, getAudioProgress as readAudioProgress, getAudioState as readAudioState, playReminderSound, sanitizeAudioCache, type AdhanVoiceId, type AdhanVariant, type AudioDownloadState, type AudioProgress, type AudioVoice, type SoundMode } from "./sound";
 
 export type IntervalPreset = "30m" | "1h" | "2h" | "3h" | "custom";
 
@@ -285,16 +285,6 @@ export async function testDuaa(): Promise<void> {
 
 export async function testSalawat(): Promise<void> {
   triggerSalawat();
-}
-
-export function testAdhan(): void {
-  const started = playDownloadedAdhan(vstorage, vstorage.adhanVoice, "normal", () => showToast(t().audioNotDownloaded), () => showToast(t().audioPlaybackFailed));
-  if (started) showToast(t().audioPlaybackStarted);
-}
-
-export function testFajrAdhan(): void {
-  const started = playDownloadedAdhan(vstorage, vstorage.adhanVoice, "fajr", () => showToast(t().audioNotDownloaded), () => showToast(t().audioPlaybackFailed));
-  if (started) showToast(t().fajrAdhanStarted);
 }
 
 function notifyAudioDownloadListeners(force = false): void {

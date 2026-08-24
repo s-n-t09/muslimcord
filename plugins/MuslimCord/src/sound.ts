@@ -263,49 +263,81 @@ export async function downloadVoice(storage: MuslimCordStorage, voice: AudioVoic
   onProgress?.(initialProgress);
   delete storage.audioDownloadError[target.key];
   try {
-    const response = await fetch(target.url, { cache: "force-cache", signal });
-    if (!response.ok) throw new Error(`Audio download failed: ${response.status}`);
-    const total = Number(response.headers.get("content-length") || 0);
     const startedAt = Date.now();
     let loaded = 0;
+    let total = 0;
     const updateProgress = (value: number, totalBytes = total) => {
+      loaded = Math.max(loaded, value);
+      total = totalBytes || total;
       const elapsedSeconds = Math.max(0.001, (Date.now() - startedAt) / 1000);
-      const speedBytesPerSecond = Math.round(value / elapsedSeconds);
-      const etaSeconds = totalBytes > value && speedBytesPerSecond > 0 ? Math.ceil((totalBytes - value) / speedBytesPerSecond) : undefined;
+      const speedBytesPerSecond = Math.round(loaded / elapsedSeconds);
+      const etaSeconds = total > loaded && speedBytesPerSecond > 0 ? Math.ceil((total - loaded) / speedBytesPerSecond) : undefined;
       const progress: AudioProgress = {
-        loaded: value,
-        total: totalBytes,
-        percent: totalBytes ? Math.min(100, Math.round((value / totalBytes) * 100)) : 0,
+        loaded,
+        total,
+        percent: total ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
         speedBytesPerSecond,
         etaSeconds,
       };
       storage.audioDownloadProgress![target.key] = progress;
       onProgress?.(progress);
     };
+    const XhrCtor = (globalThis as any).XMLHttpRequest;
     let blob: Blob;
-    if (response.body?.getReader) {
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      while (true) {
-        const item = await reader.read();
-        if (item.done) break;
-        if (signal?.aborted) throw new Error("Audio download cancelled");
-        if (item.value) {
-          chunks.push(item.value);
-          loaded += item.value.byteLength;
-          updateProgress(loaded);
-        }
-      }
-      blob = new Blob(chunks as unknown as BlobPart[], { type: target.mime });
+    if (typeof XhrCtor === "function") {
+      blob = await new Promise<Blob>((resolve, reject) => {
+        const request = new XhrCtor();
+        const cleanup = () => signal?.removeEventListener?.("abort", onAbort);
+        const onAbort = () => {
+          try { request.abort(); } catch { /* ignored */ }
+        };
+        request.open("GET", target.url, true);
+        request.responseType = "blob";
+        request.onprogress = (event: { loaded?: number; total?: number }) => {
+          if (signal?.aborted) return;
+          updateProgress(Number(event.loaded) || 0, Number(event.total) || 0);
+        };
+        request.onload = () => {
+          cleanup();
+          if ((request.status >= 200 && request.status < 300) || request.status === 0) {
+            const response = request.response instanceof Blob ? request.response : new Blob([request.response], { type: target.mime });
+            updateProgress(response.size, total || response.size);
+            resolve(response);
+          } else reject(new Error(`Audio download failed: ${request.status}`));
+        };
+        request.onerror = () => { cleanup(); reject(new Error("Audio download failed: network error")); };
+        request.onabort = () => { cleanup(); reject(new Error("Audio download cancelled")); };
+        signal?.addEventListener?.("abort", onAbort, { once: true });
+        if (signal?.aborted) { onAbort(); return; }
+        request.send();
+      });
     } else {
-      blob = await response.blob();
-      loaded = blob.size;
-      updateProgress(loaded, total || loaded);
+      const response = await fetch(target.url, { cache: "force-cache", signal });
+      if (!response.ok) throw new Error(`Audio download failed: ${response.status}`);
+      total = Number(response.headers.get("content-length") || 0);
+      if (response.body?.getReader) {
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        while (true) {
+          const item = await reader.read();
+          if (item.done) break;
+          if (signal?.aborted) throw new Error("Audio download cancelled");
+          if (item.value) {
+            chunks.push(item.value);
+            updateProgress(loaded + item.value.byteLength, total);
+          }
+        }
+        blob = new Blob(chunks as unknown as BlobPart[], { type: target.mime });
+      } else {
+        blob = await response.blob();
+        updateProgress(blob.size, total || blob.size);
+      }
     }
+    if (signal?.aborted) throw new Error("Audio download cancelled");
     delete getCache(storage)[target.key];
     await writeLocalAudio(storage, target.key, blob);
-    updateProgress(loaded || blob.size, total || blob.size);
-    storage.audioDownloadProgress[target.key] = { loaded: loaded || blob.size, total: total || blob.size, percent: 100, speedBytesPerSecond: storage.audioDownloadProgress[target.key]?.speedBytesPerSecond || 0 };
+    updateProgress(blob.size, total || blob.size);
+    storage.audioDownloadProgress[target.key] = { loaded: blob.size, total: total || blob.size, percent: 100, speedBytesPerSecond: storage.audioDownloadProgress[target.key]?.speedBytesPerSecond || 0 };
     storage.audioDownloadState[target.key] = "downloaded";
     return true;
   } catch (error) {

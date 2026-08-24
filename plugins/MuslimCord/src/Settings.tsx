@@ -1,7 +1,7 @@
 import { ReactNative as RN, React, url } from "@vendetta/metro/common";
 import { useProxy } from "@vendetta/storage";
 import { Forms } from "@vendetta/ui/components";
-import { cancelAudioDownload, dismissAudioDownload, getAudioDownloadSession, getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, subscribeAudioDownload, testAdhan, testDuaa, testFajrAdhan, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type AudioDownloadSession, type IntervalPreset } from ".";
+import { cancelAudioDownload, dismissAudioDownload, getAudioDownloadSession, getAudioProgress, getAudioState, getDuaaCountdown, getNextPrayerText, getSalawatCountdown, language, rescheduleReminders, saveLocation, subscribeAudioDownload, testDuaa, testSalawat, t, vstorage, downloadAllAudio, downloadSelectedAudio, clearDownloadedAudio, type AudioDownloadSession, type IntervalPreset } from ".";
 import { formatPrayerName, type PrayerName } from "./prayer";
 import { AUDIO_VOICES, type AdhanVoiceId, type SoundMode } from "./sound";
 
@@ -197,8 +197,6 @@ export default function Settings() {
       <ActionRow label={localized.downloadAll} onPress={() => void downloadAllAudio()} />
       <ActionRow label={localized.clearDownloads} onPress={clearDownloadedAudio} />
       <FormRow label={localized.testSection} />
-      <ActionRow label={localized.testAdhan} onPress={testAdhan} />
-      <ActionRow label={localized.testFajrAdhan} onPress={testFajrAdhan} />
       <ActionRow label={localized.testDuaa} onPress={() => void testDuaa()} />
       <ActionRow label={localized.testSalawat} onPress={() => void testSalawat()} />
       <FormText>{localized.stopAllReminders}: {vstorage.enabled ? localized.enabled : localized.stopped}</FormText>
