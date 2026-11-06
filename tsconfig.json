@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": false,
+    "jsx": "react",
+    "jsxFactory": "React.createElement",
+    "jsxFragmentFactory": "React.Fragment",
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "files": ["node_modules/vendetta-types/defs.d.ts"],
+  "include": ["plugins/**/*.ts", "plugins/**/*.tsx"]
+}

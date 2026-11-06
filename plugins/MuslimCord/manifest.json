@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "id": "com.snt.muslimcord",
+  "name": "MuslimCord",
+  "description": "Bilingual prayer times, adhan alerts, du'a and salawat reminders for Valenced.",
+  "author": "S.N.T <1444349574859980881>",
+  "version": "2.0.0",
+  "dependencies": {
+    "valenced.api": { "version": ">=1 <2" },
+    "discord": { "version": "*" }
+  },
+  "dist": {
+    "script": "index.js",
+    "android": {
+      "path": "plugin.jar",
+      "class": "com.snt.muslimcord.MuslimCord"
+    }
+  }
+}
