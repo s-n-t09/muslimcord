@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   build:
@@ -42,7 +43,7 @@ jobs:
       - name: Build plugin ZIP
         run: ./gradlew --no-daemon packageAllPlugins
         env:
-          GITHUB_TOKEN: ${{ secrets.READ_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.READ_PACKAGES_TOKEN || github.token }}
 
       - name: Verify ZIP output
         shell: bash
