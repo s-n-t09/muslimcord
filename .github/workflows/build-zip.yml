@@ -3,7 +3,7 @@ name: Build MuslimCord ZIP
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, valenced-rebuild]
     paths:
       - 'plugins/MuslimCord/**'
       - 'gradle/**'
