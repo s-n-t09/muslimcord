@@ -12,10 +12,10 @@ import java.io.File
 @Suppress("UNUSED")
 val muslimCord = plugin {
     var player: MediaPlayer? = null
-    var appFilesDir: File? = null
-    fun audioDir(): File = File(appFilesDir ?: pluginDir, "muslimcord/audio").also { it.mkdirs() }
+    lateinit var pluginStorageDir: File
+    fun audioDir(): File = File(pluginStorageDir, "audio").also { it.mkdirs() }
     start {
-        withAppActivity { activity -> appFilesDir = activity.filesDir }
+        pluginStorageDir = storageDir
         registerNativeAsyncMethod("${manifest.id}.writeAudio") { args ->
             val key = args.getOrNull(0)?.toString() ?: error("missing audio key")
             val encoded = args.getOrNull(1)?.toString() ?: error("missing audio data")
