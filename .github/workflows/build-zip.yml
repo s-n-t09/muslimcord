@@ -1,0 +1,60 @@
+name: Build MuslimCord ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/MuslimCord/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/build-zip.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Valenced plugin ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install JavaScript dependencies
+        run: bun install
+
+      - name: Build plugin ZIP
+        run: ./gradlew --no-daemon packageAllPlugins
+        env:
+          GITHUB_TOKEN: ${{ secrets.READ_PACKAGES_TOKEN }}
+
+      - name: Verify ZIP output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$(find build/dist -maxdepth 1 -type f -name 'com.snt.muslimcord@*.zip' -print -quit)"
+          unzip -l build/dist/com.snt.muslimcord@*.zip
+
+      - name: Upload MuslimCord ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: MuslimCord-Valenced-ZIP
+          path: build/dist/com.snt.muslimcord@*.zip
+          if-no-files-found: error
+          retention-days: 30
